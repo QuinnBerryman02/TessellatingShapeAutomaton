@@ -8,7 +8,6 @@ public class Plane {
     public Plane(int width, int height) {
         this.width = width;
         this.height = height;
-        
         image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 
         Color[] colors = {Color.red, Color.BLUE, Color.green};
