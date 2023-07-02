@@ -7,11 +7,11 @@ public class Shape {
     private List<Point> points;
 
     public Shape(List<Point> points) {
-        if(!areTilesConnected(points)) throw new IllegalArgumentException("Shape Tiles must be connected");
         this.points = points;
+        if(!isConnected()) throw new IllegalArgumentException("Shape Tiles must be connected");
     }
 
-    public static boolean areTilesConnected(List<Point> points) {
+    public boolean isConnected() {
         if(points.size() <= 1) return true;
         List<Point> used = new ArrayList<>();
         List<Point> unused = new ArrayList<>(points);
@@ -27,23 +27,53 @@ public class Shape {
     }
 
     public List<Edge> findEdges() {
-        List<Edge> edges = points.stream()
+        return points.stream()
         .flatMap(p -> p.getEdgesFromPointSquare().stream())
-        .distinct().collect(Collectors.toList());
-        return edges.stream().filter(e -> !points.containsAll(e.twoTiles())).toList();
+        .distinct()
+        .filter(e -> !points.containsAll(e.twoTiles())).toList();
+    }
+
+    public List<Point> findBorderPoints() {
+        return points.stream()
+        .flatMap(p -> p.getAdjacentPoints().stream())
+        .distinct()
+        .filter(p -> !points.contains(p)).collect(Collectors.toList());
     }
 
     public void print() {
-        int mx = points.stream().mapToInt(Point::x).max().orElse(0);
-        int my = points.stream().mapToInt(Point::y).max().orElse(0);
-        boolean[][] mat = new boolean[my+1][mx+1];
+        int maxX = points.stream().mapToInt(Point::x).max().orElse(0);
+        int maxY = points.stream().mapToInt(Point::y).max().orElse(0);
+        int minX = points.stream().mapToInt(Point::x).min().orElse(0);
+        int minY = points.stream().mapToInt(Point::y).min().orElse(0);
+        boolean[][] mat = new boolean[maxY+minY+1][maxX+minY+1];
         points.forEach(p -> {
-            mat[p.y()][p.x()] = true;
+            mat[p.y()-minY][p.x()-minX] = true;
         });
+        
         for (int i = 0; i < mat.length; i++) {
             for (int j = 0; j < mat[0].length; j++) {
                 boolean tile = mat[i][j];
                 System.out.print(tile ? "#" : " ");
+            }
+            System.out.println();
+        }
+    }
+
+    public void printBorderTiles() {
+        List<Point> borderTiles = findBorderPoints();
+        int maxX = borderTiles.stream().mapToInt(Point::x).max().orElse(0);
+        int maxY = borderTiles.stream().mapToInt(Point::y).max().orElse(0);
+        int minX = borderTiles.stream().mapToInt(Point::x).min().orElse(0);
+        int minY = borderTiles.stream().mapToInt(Point::y).min().orElse(0);
+        boolean[][] mat = new boolean[maxY-minY+1][maxX-minY+1];
+        borderTiles.forEach(p -> {
+            mat[p.y()-minY][p.x()-minX] = true;
+        });
+        
+        for (int i = 0; i < mat.length; i++) {
+            for (int j = 0; j < mat[0].length; j++) {
+                boolean tile = mat[i][j];
+                System.out.print(tile ? "@" : " ");
             }
             System.out.println();
         }
@@ -55,8 +85,9 @@ public class Shape {
             new Point(0, 1), 
             new Point(1, 0),
             new Point(1, 1)));
-        System.out.println(square.findEdges());
+        System.out.println(square.findEdges().size());
         square.print();
+        square.printBorderTiles();
 
         Shape jagged = new Shape(List.of(
             new Point(0, 0),
@@ -65,8 +96,9 @@ public class Shape {
             new Point(1, 2),
             new Point(2, 2)));
         
-        System.out.println(jagged.findEdges());
+        System.out.println(jagged.findEdges().size());
         jagged.print();
+        jagged.printBorderTiles();
 
         Shape crazy = new Shape(List.of(
             new Point(0, 0),
@@ -81,6 +113,7 @@ public class Shape {
         
         System.out.println(crazy.findEdges().size());
         crazy.print();
+        crazy.printBorderTiles();
     }
 }
 
@@ -96,6 +129,10 @@ record Point(int x, int y) {
         return points;
     }
 
+    public List<Point> getAdjacentPoints() {
+        return List.of(up(), right(), down(), left());
+    }
+
     public List<Edge> getEdgesFromPointSquare() {
         return List.of(new Edge(this, right()),
         new Edge(right(), right().down()),
@@ -103,7 +140,9 @@ record Point(int x, int y) {
         new Edge(down(), this));
     }
     public Point right() { return new Point(x + 1, y);}
+    public Point left() { return new Point(x - 1, y);}
     public Point down() { return new Point(x, y + 1);}
+    public Point up() { return new Point(x, y - 1);}
 
     @Override
     public String toString() {
