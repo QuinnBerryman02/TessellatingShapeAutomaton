@@ -21,6 +21,14 @@ public class GeometryUtil {
         public List<Point> getAdjacentPoints() {
             return List.of(up(), right(), down(), left());
         }
+        
+        public Point add(Point p) {
+            return new Point(x + p.x, y + p.y);
+        }
+
+        public Point sub(Point p) {
+            return new Point(x - p.x, y - p.y);
+        }
     
         public Point right() { return new Point(x + 1, y);}
         public Point left() { return new Point(x - 1, y);}
@@ -44,6 +52,12 @@ public class GeometryUtil {
             int minX = points.stream().mapToInt(Point::x).min().orElse(0);
             int minY = points.stream().mapToInt(Point::y).min().orElse(0);
             return new Rect(minX, minY, maxX - minX + 1, maxY - minY + 1);
+        }
+
+        public boolean inside(Point p) {
+            if(p.x < x || p.x >= x + width) return false;
+            if(p.y < y || p.y >= y + height) return false;
+            else return true;
         }
     }
     
@@ -127,6 +141,10 @@ public class GeometryUtil {
         public E get(int i, int j) {
             return data[i][j];
         }
+
+        public void set(int i, int j, E value) {
+            data[i][j] = value;
+        }
     
         public Matrix<E> xflip() {
             return iterator(width, height, p -> p.i, p -> p.j, p -> p.i, p -> width - p.j - 1);
@@ -184,7 +202,7 @@ public class GeometryUtil {
         public void print() {
             for (int i = 0; i < height; i++) {
                 for (int j = 0; j < width; j++) {
-                    System.out.print(data[i][j]);
+                    System.out.print(data[i][j] + " ");
                 }
                 System.out.println();
             }
@@ -205,9 +223,26 @@ public class GeometryUtil {
             L.yflip().print();
             L.flipDiagTR().print();
             L.flipDiagTL().print();
-    
         }
-    
+
+        public List<Point> findAllMatches(E value) {
+            List<Point> found = new ArrayList<>();
+            for (int i = 0; i < height; i++) {
+                for (int j = 0; j < width; j++) {
+                    if(get(i, j).equals(value)) found.add(new Point(j, i));
+                }
+            }
+            return found;
+        }
+
+        public Point pointAfterTransformation(Point p, Symmetry transformation) {
+            Matrix<Boolean> blankMat = new Matrix<Boolean>(width, height, false);
+            blankMat.set(p.y(), p.x(), true); 
+            Matrix<Boolean> transformedMat = blankMat.transform(transformation);
+            Point transformedPoint = transformedMat.findAllMatches(true).get(0);
+            return transformedPoint;
+        }
+
         @Override
         public boolean equals(Object obj) {
             if(!(obj instanceof Matrix<?> mat2)) return false;

@@ -10,6 +10,7 @@ import src.GeometryUtil.*;
 public class Shape {
     private Matrix<Boolean> bitmap;
     private List<Point> points = new ArrayList<>();
+    private Point center;
 
     public Shape(Matrix<Boolean> bitmap) {
         this.bitmap = bitmap;
@@ -19,12 +20,17 @@ public class Shape {
                 if(bitmap.get(i,j)) points.add(new Point(j, i));
             }
         }
+        this.center = points.get(0);
         if(!isConnected()) throw new IllegalArgumentException("Shape Tiles must be connected");
        
     }
 
     public Matrix<Boolean> getBitmap() {
         return bitmap;
+    }
+
+    public Point getCenter() {
+        return center;
     }
 
     public boolean isConnected() {
