@@ -8,22 +8,29 @@ import java.util.stream.Collectors;
 import src.GeometryUtil.*;
 
 public class Shape {
-    private Bitmap bitmap;
+    private Matrix<Boolean> bitmap;
+    private List<Point> points = new ArrayList<>();
 
-    public Shape(Bitmap bitmap) {
+    public Shape(Matrix<Boolean> bitmap) {
         this.bitmap = bitmap;
         if(bitmap == null) throw new IllegalArgumentException("Shape must have a bitmap");
+        for (int i = 0; i < bitmap.getHeight(); i++) {
+            for (int j = 0; j < bitmap.getWidth(); j++) {
+                if(bitmap.get(i,j)) points.add(new Point(j, i));
+            }
+        }
         if(!isConnected()) throw new IllegalArgumentException("Shape Tiles must be connected");
+       
     }
 
-    public Bitmap getBitmap() {
+    public Matrix<Boolean> getBitmap() {
         return bitmap;
     }
 
     public boolean isConnected() {
-        if(bitmap.getPoints().size() <= 1) return true;
+        if(points.size() <= 1) return true;
         List<Point> used = new ArrayList<>();
-        List<Point> unused = new ArrayList<>(bitmap.getPoints());
+        List<Point> unused = new ArrayList<>(points);
         Point current = unused.remove(0);
         used.add(current);
         while(!used.isEmpty()) {
@@ -36,15 +43,19 @@ public class Shape {
     }
 
     public List<Point> findBorderPoints() {
-        return bitmap.getPoints().stream()
+        return points.stream()
         .flatMap(p -> p.getAdjacentPoints().stream())
         .distinct()
-        .filter(p -> !bitmap.getPoints().contains(p)).collect(Collectors.toList());
+        .filter(p -> !points.contains(p)).collect(Collectors.toList());
     }
 
-    
+    public List<Symmetry> findSymmetriesThatLookTheSame(Symmetry symmetry) {
+        Matrix<Boolean> goal = bitmap.transform(symmetry);
+        return Arrays.stream(Symmetry.values())
+        .filter(sym -> bitmap.transform(sym).equals(goal)).toList();
+    }
 
-    public List<Symmetry> findSymmetriesThatAlign(Bitmap map) {
+    public List<Symmetry> findSymmetriesThatAlign(Matrix<Boolean> map) {
         return Arrays.stream(Symmetry.values())
         .filter(sym -> map.transform(sym).equals(bitmap)).toList();
     }
@@ -61,8 +72,8 @@ public class Shape {
         System.out.println(SMALL_L_SHAPE.findSymmetriesThatAlign(SMALL_L_SHAPE.bitmap.rotate180()));
     }
 
-    public static final Shape SQUARE = new Shape(new Bitmap(new boolean[][]{{true, true}, {true, true}}));
-    public static final Shape L_SHAPE = new Shape(new Bitmap(new boolean[][] {{true,false},{true,false},{true,true}}));
-    public static final Shape SMALL_L_SHAPE = new Shape(new Bitmap(new boolean[][] {{true,false},{true,true}}));
+    public static final Shape SQUARE = new Shape(new Matrix<Boolean>(new Boolean[][]{{true, true}, {true, true}}));
+    public static final Shape L_SHAPE = new Shape(new Matrix<Boolean>(new Boolean[][] {{true,false},{true,false},{true,true}}));
+    public static final Shape SMALL_L_SHAPE = new Shape(new Matrix<Boolean>(new Boolean[][] {{true,false},{true,true}}));
 
 }
