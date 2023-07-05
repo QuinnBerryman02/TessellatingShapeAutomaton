@@ -4,19 +4,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import src.GeometryUtil.*;
 
 public class Shape {
     private Bitmap bitmap;
-    private Symmetry symmetry;
 
     public Shape(Bitmap bitmap) {
         this.bitmap = bitmap;
-        this.symmetry = Symmetry.IDENTITY;
         if(bitmap == null) throw new IllegalArgumentException("Shape must have a bitmap");
         if(!isConnected()) throw new IllegalArgumentException("Shape Tiles must be connected");
+    }
+
+    public Bitmap getBitmap() {
+        return bitmap;
     }
 
     public boolean isConnected() {
@@ -49,27 +50,19 @@ public class Shape {
     }
 
     public static void main(String[] args) {
-        Shape square = new Shape(new Bitmap(new boolean[][]{{true, true}, {true, true}}));
-
-        square.bitmap.print();
+        SQUARE.bitmap.print();
         
-        System.out.println(square.findSymmetriesThatAlign(square.bitmap.rotate180()));
+        System.out.println(SQUARE.findSymmetriesThatAlign(SQUARE.bitmap.rotate180()));
 
-        Bitmap L = new Bitmap(new boolean[][] {
-            {true,false},
-            {true,false},
-            {true,true},
-        });
-        L.print();
-        Shape Lshape = new Shape(L);
-        System.out.println(Lshape.findSymmetriesThatAlign(Lshape.bitmap.rotate90CW()));
+        L_SHAPE.bitmap.print();
+        System.out.println(L_SHAPE.findSymmetriesThatAlign(L_SHAPE.bitmap.rotate90CW()));
 
-        Bitmap smallL = new Bitmap(new boolean[][] {
-            {true,false},
-            {true,true},
-        });
-        smallL.print();
-        Shape smallLShape = new Shape(smallL);
-        System.out.println(smallLShape.findSymmetriesThatAlign(smallLShape.bitmap.rotate180()));
+        SMALL_L_SHAPE.bitmap.print();
+        System.out.println(SMALL_L_SHAPE.findSymmetriesThatAlign(SMALL_L_SHAPE.bitmap.rotate180()));
     }
+
+    public static final Shape SQUARE = new Shape(new Bitmap(new boolean[][]{{true, true}, {true, true}}));
+    public static final Shape L_SHAPE = new Shape(new Bitmap(new boolean[][] {{true,false},{true,false},{true,true}}));
+    public static final Shape SMALL_L_SHAPE = new Shape(new Bitmap(new boolean[][] {{true,false},{true,true}}));
+
 }
