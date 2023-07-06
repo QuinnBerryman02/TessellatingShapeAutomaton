@@ -4,10 +4,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.awt.Color;
 
 import src.GeometryUtil.*;
 
 public class RegularTessellation {
+    private static final boolean DEBUG = false;
     private Shape shape;
     private Matrix<Integer> mat;
     private int W;
@@ -16,6 +18,7 @@ public class RegularTessellation {
     private Map<Symmetry, TrueShapeCenters> trueShapeCenters;
     private RelativeShapeCenters relativeShapeCenters;
     private Point center;
+    private Color[] colorCodes = {Color.black, Color.cyan, Color.pink, Color.green, Color.yellow, Color.red,  Color.magenta, Color.orange, Color.lightGray, Color.darkGray};
 
     public RegularTessellation(Shape shape) {
         this.shape = shape;
@@ -25,6 +28,7 @@ public class RegularTessellation {
         this.W = shapeWidth + 2 * maxDim;
         this.H = shapeHeight + 2 * maxDim;
         this.mat = new Matrix<>(W, H, 0);
+        mat.setColorMap(i -> colorCodes[i]);
         this.trueShapeCenters = new HashMap<>();
         this.relativeShapeCenters = new RelativeShapeCenters(new Point(0, 0));
         this.center = new Point(maxDim, maxDim).add(shape.getCenter());
@@ -90,14 +94,14 @@ public class RegularTessellation {
                         );
                     }
                 }
-                System.out.println("plane is transformed by " + planeTrans.name());
-                System.out.println("main center is " + trueShapeCenters.get(planeTrans).main);
-                System.out.println("center we are checking is center is " + trueShapeCenters.get(planeTrans).find(centSym.code));
-                System.out.println("relative centers we must check : " + relativeShapeCenters.others);
-                System.out.println("locations of nearby centers : " + trueShapeCenters.get(planeTrans).others + " and " + trueShapeCenters.get(planeTrans).main);
-                //starting from check center, look at all realative centers, treating check center as main
-                //tile must be a center, or empty, or out of bounds
-                //if you find a number, and the tile isnt a center, the symmetry is invalid for this borderSHape
+                if(DEBUG) {
+                    System.out.println("plane is transformed by " + planeTrans.name());
+                    System.out.println("main center is " + trueShapeCenters.get(planeTrans).main);
+                    System.out.println("center we are checking is center is " + trueShapeCenters.get(planeTrans).find(centSym.code));
+                    System.out.println("relative centers we must check : " + relativeShapeCenters.others);
+                    System.out.println("locations of nearby centers : " + trueShapeCenters.get(planeTrans).others + " and " + trueShapeCenters.get(planeTrans).main);
+                }
+                System.out.println("Plane transformation = " + planeTrans.name());
                 planeTransformations.get(planeTrans).print();
                 CentSym toCheck = trueShapeCenters.get(planeTrans).find(centSym.code);
                 Point checkCenter = toCheck.center;
@@ -106,21 +110,22 @@ public class RegularTessellation {
                     Point otherCenter = checkCenter.add(relativeCenter.center);
                     Rect plane = new Rect(0, 0, W, H);
                     if(!plane.inside(otherCenter)) {
-                        System.out.println("point " + otherCenter + " is oob, safe");
+                        if(DEBUG) System.out.println("point " + otherCenter + " is oob, safe");
                         continue;
                     }
                     int code = planeTransformations.get(planeTrans).get(otherCenter.y(), otherCenter.x());
                     if(code == 0) {
-                        System.out.println("point " + otherCenter + " is empty, safe");
+                        if(DEBUG) System.out.println("point " + otherCenter + " is empty, safe");
                         continue;
                     }
                     CentSym shapeFound = trueShapeCenters.get(planeTrans).find(code);
                     boolean correctAppearance = shape.findSymmetriesThatLookTheSame(relativeCenter.symmetry).contains(shapeFound.symmetry);
                     if(correctAppearance && shapeFound.center.equals(otherCenter)) {
-                        System.out.println("point " + otherCenter + " is a center and the correct orientation, safe");
+                        if(DEBUG) System.out.println("point " + otherCenter + " is a center and the correct orientation, safe");
                         continue;
                     }
-                    System.out.println("point " + otherCenter + " did not match rules, failed");
+                    if(DEBUG) System.out.println("point " + otherCenter + " did not match rules, failed");
+                    else System.out.println("Shape " + code + " failed");
                     valid = false;
                     break;
                 }
@@ -130,16 +135,6 @@ public class RegularTessellation {
         }
         
         return false;
-    }
-
-    public void print() {
-        for (int i = 0; i < H; i++) {
-            for (int j = 0; j < W; j++) {
-                System.out.print((mat.get(i,j) > 9 ? "" : " ") + mat.get(i,j) + " ");
-            }
-            System.out.println();
-        }
-        System.out.println();
     }
 
     public static void main(String[] args) {
@@ -152,10 +147,7 @@ public class RegularTessellation {
         System.out.println(regTes2.borderTilesOccupied()); 
         regTes2.addShape(new Point(4, 4), Symmetry.ROT_90);
         System.out.println(regTes2.borderTilesOccupied()); 
-        regTes2.print();
-        System.out.println(regTes2.relativeShapeCenters);
-
-        System.out.println(Shape.SMALL_L_SHAPE.findSymmetriesThatLookTheSame(Symmetry.IDENTITY)); 
+        regTes2.mat.print();
 
         regTes2.borderShapesFollowRules();
     }

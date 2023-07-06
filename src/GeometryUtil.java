@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.lang.reflect.Array;
+import java.awt.Color;
 
 public class GeometryUtil {
     record Point(int x, int y) {
@@ -101,11 +102,16 @@ public class GeometryUtil {
         private E[][] data;
         private int width;
         private int height;
+        private Function<E, Color> colorMap;
     
         public Matrix(E[][] data) {
             this.width = data[0].length;
             this.height = data.length;
             this.data = data;
+        }
+
+        public void setColorMap(Function<E, Color> colorMap) {
+            this.colorMap = colorMap;
         }
 
         @SuppressWarnings("unchecked")
@@ -196,17 +202,27 @@ public class GeometryUtil {
                     newData[newY.apply(p)][newX.apply(p)] = data[oldY.apply(p)][oldX.apply(p)];
                 }
             }
-            return new Matrix<>(newData);
+            Matrix<E> newMat = new Matrix<>(newData);
+            newMat.setColorMap(colorMap);
+            return newMat;
         }
     
         public void print() {
             for (int i = 0; i < height; i++) {
                 for (int j = 0; j < width; j++) {
-                    System.out.print(data[i][j] + " ");
+                    E e = data[i][j];
+                    System.out.print(colorToAsciiCode(colorMap.apply(e)) + e + " " + colorReset());
                 }
                 System.out.println();
             }
-            System.out.println();
+        }
+
+        private static String colorToAsciiCode(Color c) {
+            return "\033[97;48;2;" + c.getRed() + ";" + c.getGreen() + ";" + c.getBlue() + "m";
+        }
+    
+        private static String colorReset() {
+            return "\033[0m";
         }
     
         public static void main(String[] args) {
@@ -257,5 +273,9 @@ public class GeometryUtil {
             }
             return true;
         }
+
+
     }
+
+    
 }
