@@ -30,6 +30,10 @@ public class GeometryUtil {
         public Point sub(Point p) {
             return new Point(x - p.x, y - p.y);
         }
+
+        public Point negate() {
+            return new Point(-x,-y);
+        }
     
         public Point right() { return new Point(x + 1, y);}
         public Point left() { return new Point(x - 1, y);}
@@ -42,8 +46,6 @@ public class GeometryUtil {
         }
 
     }
-
-    record Pair(int i, int j) {};
     
     record Rect(int x, int y, int width, int height) {
         public static Rect calculateRect(List<Point> points) {
@@ -95,6 +97,19 @@ public class GeometryUtil {
             if(this.equals(ROT_90)) return ROT_270;
             if(this.equals(ROT_270)) return ROT_90;
             return this;
+        }
+
+        public String simple() {
+            return switch(this) {
+                case IDENTITY -> "ID";
+                case ROT_90 -> "90";
+                case ROT_180 -> "18";
+                case ROT_270 -> "27";
+                case FLIP_X -> "FX";
+                case FLIP_Y -> "FY";
+                case DIAG_TR -> "TR";
+                case DIAG_TL -> "TL";
+            };
         }
     }
     
@@ -153,23 +168,23 @@ public class GeometryUtil {
         }
     
         public Matrix<E> xflip() {
-            return iterator(width, height, p -> p.i, p -> p.j, p -> p.i, p -> width - p.j - 1);
+            return iterator(width, height, p -> p.y, p -> p.x, p -> p.y, p -> width - p.x - 1);
         }
     
         public Matrix<E> yflip() {
-            return iterator(width, height, p -> p.i, p -> p.j, p -> height - p.i - 1, p -> p.j);
+            return iterator(width, height, p -> p.y, p -> p.x, p -> height - p.y - 1, p -> p.x);
         }
     
         public Matrix<E> rotate90CW() {
-            return iterator(height, width, p -> p.j, p -> height - p.i - 1, p -> p.i, p -> p.j);
+            return iterator(height, width, p -> p.x, p -> height - p.y - 1, p -> p.y, p -> p.x);
         }
     
         public Matrix<E> rotate90CCW() {
-            return iterator(height, width, p -> width - p.j - 1, p -> p.i, p -> p.i, p -> p.j);
+            return iterator(height, width, p -> width - p.x - 1, p -> p.y, p -> p.y, p -> p.x);
         }
     
         public Matrix<E> rotate180() {
-            return iterator(width, height, p -> p.i, p -> p.j, p -> height - p.i - 1, p -> width - p.j - 1);
+            return iterator(width, height, p -> p.y, p -> p.x, p -> height - p.y - 1, p -> width - p.x - 1);
         }
     
         public Matrix<E> flipDiagTR() {
@@ -193,12 +208,16 @@ public class GeometryUtil {
             };
         }
 
+        public Rect toRect() {
+            return new Rect(0,0,width,height);
+        }
+
         @SuppressWarnings("unchecked")
-        public Matrix<E> iterator(int w, int h, Function<Pair,Integer> newY, Function<Pair,Integer> newX, Function<Pair,Integer> oldY, Function<Pair,Integer> oldX) {
+        public Matrix<E> iterator(int w, int h, Function<Point,Integer> newY, Function<Point,Integer> newX, Function<Point,Integer> oldY, Function<Point,Integer> oldX) {
             E[][] newData = (E[][])Array.newInstance(data[0][0].getClass(), h, w);
             for (int i = 0; i < height; i++) {
                 for (int j = 0; j < width; j++) {
-                    Pair p = new Pair(i, j);
+                    Point p = new Point(j, i);
                     newData[newY.apply(p)][newX.apply(p)] = data[oldY.apply(p)][oldX.apply(p)];
                 }
             }
@@ -252,11 +271,16 @@ public class GeometryUtil {
         }
 
         public Point pointAfterTransformation(Point p, Symmetry transformation) {
-            Matrix<Boolean> blankMat = new Matrix<Boolean>(width, height, false);
-            blankMat.set(p.y(), p.x(), true); 
-            Matrix<Boolean> transformedMat = blankMat.transform(transformation);
-            Point transformedPoint = transformedMat.findAllMatches(true).get(0);
-            return transformedPoint;
+            return switch(transformation) {
+                case IDENTITY -> new Point( p.x,                p.y);
+                case ROT_90 -> new Point(   height - p.y - 1,   p.x);
+                case ROT_180 -> new Point(  width - p.x - 1,    height - p.y - 1);
+                case ROT_270 -> new Point(  p.y,                width - p.x - 1);
+                case FLIP_X -> new Point(   width - p.x - 1,    p.y);
+                case FLIP_Y -> new Point(   p.x,                height - p.y - 1);
+                case DIAG_TR -> new Point(  height - p.y - 1,   width - p.x - 1);
+                case DIAG_TL -> new Point(  p.y,                p.x);
+            };
         }
 
         @Override

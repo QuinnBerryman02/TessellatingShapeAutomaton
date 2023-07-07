@@ -1,22 +1,23 @@
 package src;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.awt.Color;
 
 import src.GeometryUtil.*;
+import src.Util.*;
 
 public class RegularTessellation {
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
     private Shape shape;
     private Matrix<Integer> mat;
     private int W;
     private int H;
-    private int shapeCounter = 0;
-    private Map<Symmetry, TrueShapeCenters> trueShapeCenters;
-    private RelativeShapeCenters relativeShapeCenters;
+    private Map<Integer, DefShape> defShapes = new HashMap<>();
     private Point center;
     private Color[] colorCodes = {Color.black, Color.cyan, Color.pink, Color.green, Color.yellow, Color.red,  Color.magenta, Color.orange, Color.lightGray, Color.darkGray};
 
@@ -25,24 +26,27 @@ public class RegularTessellation {
         int shapeWidth = shape.getBitmap().getWidth();
         int shapeHeight = shape.getBitmap().getHeight();
         int maxDim = Math.max(shapeWidth, shapeHeight);
-        this.W = shapeWidth + 2 * maxDim;
-        this.H = shapeHeight + 2 * maxDim;
-        this.mat = new Matrix<>(W, H, 0);
+        W = shapeWidth + 2 * maxDim;
+        H = shapeHeight + 2 * maxDim;
+        mat = new Matrix<>(W, H, 0);
         mat.setColorMap(i -> colorCodes[i]);
-        this.trueShapeCenters = new HashMap<>();
-        this.relativeShapeCenters = new RelativeShapeCenters(new Point(0, 0));
-        this.center = new Point(maxDim, maxDim).add(shape.getCenter());
-        trueShapeCenters.put(Symmetry.IDENTITY, new TrueShapeCenters(Symmetry.IDENTITY, new CentSym(center, Symmetry.IDENTITY, 1)));
-        placeBitmap(center, shape.getBitmap(), ++shapeCounter);
+
+        center = new Point(maxDim, maxDim).add(shape.getCenter());
+        DefShape.setup(shape, center, mat);
+        addShape(Symmetry.IDENTITY, center);
     }
 
-    public boolean addShape(Point p, Symmetry transformation) {
-        Point transformedShapeCenter = shape.getBitmap().pointAfterTransformation(shape.getCenter(), transformation);
-        Point bitmapTL = p.sub(transformedShapeCenter);
-        Point relativeCenter = p.sub(center);
-        relativeShapeCenters.others.add(new CentSym(relativeCenter, transformation,  ++shapeCounter));
-        trueShapeCenters.get(Symmetry.IDENTITY).others.add(new CentSym(p, transformation,  shapeCounter));
-        return placeBitmap(bitmapTL, shape.getBitmap().transform(transformation), shapeCounter);
+    public boolean addShape(Symmetry transformation, Point center) {
+        DefShape defShape = new DefShape(transformation, center);
+        Point transformedShapeCenter = shape.getCenterTransformed(transformation);
+        Point bitmapTL = center.sub(transformedShapeCenter);
+        boolean canPlace = placeBitmap(bitmapTL, shape.getBitmap().transform(transformation), defShape.code);
+        if(canPlace) {
+            defShapes.put(defShape.code, defShape);
+        } else {
+            DefShape.NUMBER_OF_SHAPES--;
+        }
+        return canPlace;
     }
 
     private boolean placeBitmap(Point p, Matrix<Boolean> bm, int code) {
@@ -52,11 +56,7 @@ public class RegularTessellation {
         //checking if its safe
         for (int i = 0; i < bmh; i++) {
             for (int j = 0; j < bmw; j++) {
-                if(bm.get(i,j) && mat.get(i+p.y(), j+p.x()) != 0) {
-                    shapeCounter--;
-                    relativeShapeCenters.others.remove(relativeShapeCenters.others.size()-1);
-                    return false;
-                }
+                if(bm.get(i,j) && mat.get(i+p.y(), j+p.x()) != 0) return false;
             }
         }
         //placing
@@ -68,145 +68,320 @@ public class RegularTessellation {
         return true;
     }
 
+    public List<DefShape> getBorderShapes() {
+        return getBorderShapesByCode(1);
+    }
+
+    public List<DefShape> getBorderShapesByCode(int code) {
+        return defShapes.values().stream().filter(bs -> bs.code != code).toList();
+    }
+
+    public DefShape getMainShape() {
+        return defShapes.get(1);
+    }
+
     public boolean borderTilesOccupied() {
         return shape.findBorderPoints().stream().allMatch(p -> {
             return mat.get(p.y() + center.y(), p.x() + center.x()) != 0;
         });
     }
 
+    public List<AbsoluteRule> getAllAbsoluteRules(Symmetry planeSymmetry) {
+        return defShapes.values().stream()
+        .flatMap(sh -> sh.getPotentialAbsoluteRules(planeSymmetry).stream()).toList();
+    }
+
+    public List<RelativeRule> getAllRelativeRules() {
+        return defShapes.values().stream()
+        .flatMap(sh -> sh.getPotentialRelativeRules().stream()).toList();
+    }
+
+    public AbsoluteRule findMatchingCenter(PositionRule relRule, List<AbsoluteRule> list) {
+        return list.stream().filter(r -> r.equals(relRule)).findFirst().orElse(null);
+    }
+
     public boolean borderShapesFollowRules() {
         Map<Symmetry,Matrix<Integer>> planeTransformations = new HashMap<>();
         planeTransformations.put(Symmetry.IDENTITY, mat);
-        for (CentSym centSym : relativeShapeCenters.others) {
-            List<Symmetry> symmetriesToCheck = shape.findSymmetriesThatLookTheSame(centSym.symmetry);
-            System.out.println("checking  " + centSym.code);
-            for (Symmetry shapeSym : symmetriesToCheck) { 
-                Symmetry planeTrans = shapeSym.inversion();
-                if(!planeTransformations.containsKey(planeTrans)) {
-                    Matrix<Integer> newPlane = mat.transform(planeTrans);
-                    planeTransformations.put(planeTrans, newPlane);
-                    CentSym mainPoint = new CentSym(newPlane.pointAfterTransformation(center, planeTrans), planeTrans, 1);
-                    TrueShapeCenters transformedCenters = new TrueShapeCenters(planeTrans, mainPoint);
-                    trueShapeCenters.put(planeTrans, transformedCenters);
-                    for(CentSym cs : trueShapeCenters.get(Symmetry.IDENTITY).others) {
-                        transformedCenters.others.add(
-                            new CentSym(newPlane.pointAfterTransformation(cs.center, planeTrans), cs.symmetry.apply(planeTrans), cs.code)
-                        );
-                    }
-                }
-                if(DEBUG) {
-                    System.out.println("plane is transformed by " + planeTrans.name());
-                    System.out.println("main center is " + trueShapeCenters.get(planeTrans).main);
-                    System.out.println("center we are checking is center is " + trueShapeCenters.get(planeTrans).find(centSym.code));
-                    System.out.println("relative centers we must check : " + relativeShapeCenters.others);
-                    System.out.println("locations of nearby centers : " + trueShapeCenters.get(planeTrans).others + " and " + trueShapeCenters.get(planeTrans).main);
-                }
-                System.out.println("Plane transformation = " + planeTrans.name());
-                planeTransformations.get(planeTrans).print();
-                CentSym toCheck = trueShapeCenters.get(planeTrans).find(centSym.code);
-                Point checkCenter = toCheck.center;
-                boolean valid = true;
-                for (CentSym relativeCenter : relativeShapeCenters.others) {
-                    Point otherCenter = checkCenter.add(relativeCenter.center);
-                    Rect plane = new Rect(0, 0, W, H);
-                    if(!plane.inside(otherCenter)) {
-                        if(DEBUG) System.out.println("point " + otherCenter + " is oob, safe");
+        List<RelativeRule> relativeRules = getAllRelativeRules();
+        System.out.println("relative centers : " + relativeRules);
+        for(DefShape currentShape : getBorderShapes()) {
+            System.out.println("checking  " + currentShape.code);  
+            for (Symmetry shapeSymmetry : currentShape.getPotentialSymmetries()) {
+                Symmetry planeSymmetry = shapeSymmetry.inversion();
+                Matrix<Integer> plane = planeTransformations.computeIfAbsent(planeSymmetry, mat::transform);
+                Point currentCenter = currentShape.getAbsoluteCenter(shapeSymmetry, planeSymmetry);
+                System.out.println("shape sym : " + shapeSymmetry + " plane sym : " + planeSymmetry);
+                plane.print();
+                System.out.println("abs center : " + currentCenter);
+
+                List<AbsoluteRule> absoluteRules = getAllAbsoluteRules(planeSymmetry);
+                System.out.println("abs : " + absoluteRules);
+                List<Integer> failedCodes = new ArrayList<>(); //not sure if this is 100% legit, but i think it holds
+                for (RelativeRule rule : relativeRules) {
+                    RelativeRule trueRule = rule.adjust(currentCenter);
+                    Point testCenter = trueRule.point;
+                    if(failedCodes.contains((Integer)rule.declaringCode)) {
+                        if(DEBUG) System.out.println(trueRule + " PARTNER IMPOSSIBLE => failed");
                         continue;
                     }
-                    int code = planeTransformations.get(planeTrans).get(otherCenter.y(), otherCenter.x());
+                    if(!plane.toRect().inside(testCenter)) {
+                        currentShape.validNeigbourRules.get(shapeSymmetry).add(rule);
+                        if(DEBUG) System.out.println(trueRule + " OOB => safe");
+                        continue;
+                    }
+                    int code = plane.get(testCenter.y(), testCenter.x());
                     if(code == 0) {
-                        if(DEBUG) System.out.println("point " + otherCenter + " is empty, safe");
+                        currentShape.validNeigbourRules.get(shapeSymmetry).add(rule);
+                        if(DEBUG) System.out.println(trueRule + " EMPTY TILE => safe");
                         continue;
                     }
-                    CentSym shapeFound = trueShapeCenters.get(planeTrans).find(code);
-                    boolean correctAppearance = shape.findSymmetriesThatLookTheSame(relativeCenter.symmetry).contains(shapeFound.symmetry);
-                    if(correctAppearance && shapeFound.center.equals(otherCenter)) {
-                        if(DEBUG) System.out.println("point " + otherCenter + " is a center and the correct orientation, safe");
+                    AbsoluteRule matchingCenter = findMatchingCenter(trueRule, absoluteRules);
+                    if(matchingCenter != null) {
+                        currentShape.validNeigbourRules.get(shapeSymmetry).add(rule);
+                        if(DEBUG) System.out.println(trueRule + " DID MATCH => safe");
                         continue;
                     }
-                    if(DEBUG) System.out.println("point " + otherCenter + " did not match rules, failed");
-                    else System.out.println("Shape " + code + " failed");
-                    valid = false;
-                    break;
-                }
-                System.out.println(centSym.code + " with symmetry " + shapeSym + " is " + (valid ? "valid" : "invalid"));
-                System.out.println();
+                    if(DEBUG) System.out.println(trueRule + " NO MATCH => failed");
+                    failedCodes.add(code);
+                }   
+                System.out.println("shape " + currentShape.code + " in symmetry " + shapeSymmetry + " was " + (currentShape.followsRules(shapeSymmetry) ? "valid" : "invalid"));   
             }
         }
-        
+        for (DefShape shape : getBorderShapes()) {
+            System.out.println(shape.code + "'s neighbours = " + shape.validNeigbourRules);
+        }
+        reduceRules();
+        for (DefShape shape : getBorderShapes()) {
+            System.out.println(shape.code + " neighbours = " + shape.validNeigbourRules);
+        }
         return false;
     }
 
+    public List<RelativeRule> removeInvalidSymmetries(List<RelativeRule> knownIncorrectRules) {
+        System.out.println("REMOVING INCORRECT SHAPE SYMMETRIES");
+        List<RelativeRule> newIncorrectRules = new ArrayList<>();
+        for (DefShape shape : getBorderShapes()) {
+            for (Symmetry symmetry : List.copyOf(shape.validNeigbourRules.keySet())) {
+                shape.validNeigbourRules.get(symmetry).removeIf(knownIncorrectRules::contains);
+                boolean valid = shape.followsRules(symmetry);
+                RelativeRule rule = shape.getRelativeRule(symmetry);
+                if(!valid) {
+                    newIncorrectRules.add(rule);
+                    shape.discountSymmetry(symmetry);
+                }
+                System.out.println("shape " + rule + " is " + (valid ? "valid" : "invalid"));
+            }
+        }
+        return newIncorrectRules;
+    }
+
+    public void reduceRules() {
+        List<RelativeRule> incorrectRules = new ArrayList<>();
+        do {
+            incorrectRules = removeInvalidSymmetries(incorrectRules);
+        } while (!incorrectRules.isEmpty());
+    }
+
     public static void main(String[] args) {
-        RegularTessellation regTes2 = new RegularTessellation(Shape.SMALL_L_SHAPE);
-        regTes2.addShape(new Point(0, 2), Symmetry.IDENTITY);
-        regTes2.addShape(new Point(4, 2), Symmetry.IDENTITY);
-        regTes2.addShape(new Point(2, 1), Symmetry.ROT_90);
-        regTes2.addShape(new Point(4, 1), Symmetry.ROT_90);
-        regTes2.addShape(new Point(2, 4), Symmetry.ROT_90);
-        System.out.println(regTes2.borderTilesOccupied()); 
-        regTes2.addShape(new Point(4, 4), Symmetry.ROT_90);
+        // RegularTessellation regTes1 = new RegularTessellation(Shape.SMALL_L_SHAPE);
+        // regTes1.defShape(new Point(0, 2), Symmetry.IDENTITY);
+        // regTes1.defShape(new Point(4, 2), Symmetry.IDENTITY);
+        // regTes1.defShape(new Point(2, 1), Symmetry.ROT_90);
+        // regTes1.defShape(new Point(4, 1), Symmetry.ROT_90);
+        // regTes1.defShape(new Point(2, 4), Symmetry.ROT_90);
+        // regTes1.defShape(new Point(4, 4), Symmetry.ROT_90);
+        // System.out.println(regTes1.borderTilesOccupied()); 
+        // regTes1.mat.print();
+        // regTes1.borderShapesFollowRules();
+
+        RegularTessellation regTes2 = new RegularTessellation(Shape.JAGGED);
+        regTes2.addShape(Symmetry.IDENTITY, new Point(3, 5));
+        regTes2.addShape(Symmetry.IDENTITY, new Point(5, 3));
+        regTes2.addShape(Symmetry.ROT_180, new Point(2, 5));
+        regTes2.addShape(Symmetry.ROT_180, new Point(2, 3));
+        regTes2.addShape(Symmetry.ROT_180, new Point(4, 3));
+        regTes2.addShape(Symmetry.ROT_180, new Point(7, 8));
+
         System.out.println(regTes2.borderTilesOccupied()); 
         regTes2.mat.print();
-
         regTes2.borderShapesFollowRules();
     }
 }
 
-class TrueShapeCenters {
-    public Symmetry planeTransformation;
-    public CentSym main;
-    public List<CentSym> others;
+class DefShape {
+    public static int NUMBER_OF_SHAPES = 0;
+    public static Shape shape;
+    public static Matrix<Integer> plane;
+    public static Point mainCenter;
 
-    public TrueShapeCenters(Symmetry planeTransformation, CentSym main) {
-        this.planeTransformation = planeTransformation;
-        this.main = main;
-        others = new ArrayList<>();
-    }
-
-    public CentSym find(int code) {
-        if(main.code == code) return main;
-        for (CentSym cs : others) {
-            if(cs.code == code) return cs;
-        }
-        return null;
-    }
-}
-
-class RelativeShapeCenters {
-    public CentSym main;
-    public List<CentSym> others;
-
-    public RelativeShapeCenters(Point mainCenter) {
-        main = new CentSym(mainCenter, Symmetry.IDENTITY, 0);
-        main.certain = true;
-        others = new ArrayList<>();
-    }
-
-    @Override
-    public String toString() {
-        return "main: " + main + "\nothers: " + others;
-    }
-}
-
-class CentSym {
-    public Point center;
-    public Symmetry symmetry;
-    public boolean certain = false;
     public int code;
+    public Point initialRelCenter;
+    public Point initialAbsCenter;
+    public Symmetry initialSymmetry;
 
-    public CentSym(Point center, Symmetry symmetry, int code) {
-        this.center = center;
-        this.symmetry = symmetry;
-        this.code = code;
+    public List<Symmetry> potentialSymmetries;
+    public Map<Symmetry, List<RelativeRule>> validNeigbourRules = new HashMap<>();
+
+    public boolean certain = false;
+    public Symmetry trueSymmetry;
+    public RelativeRule trueRelRule;
+    public AbsoluteRule trueAbsRule;
+    
+    public static void setup(Shape _shape, Point _center, Matrix<Integer> _plane) {
+        shape = _shape; 
+        mainCenter = _center;
+        plane = _plane;
+    }
+    public DefShape(Symmetry chosenSymmetry, Point chosenCenter) {
+        this.code = ++NUMBER_OF_SHAPES;
+        this.initialAbsCenter = chosenCenter;
+        this.initialRelCenter = initialAbsCenter.sub(mainCenter);
+        this.initialSymmetry = chosenSymmetry;
+        
+        this.potentialSymmetries = shape.findSymmetriesThatLookTheSame(initialSymmetry);
+        if(code == 1) potentialSymmetries = new ArrayList<>(List.of(Symmetry.IDENTITY));
+        potentialSymmetries.forEach(sym -> validNeigbourRules.put(sym, new ArrayList<>()));
+    }
+    //calculates the shapes center point, in its default plane transform
+    public Point getAbsoluteCenter(Symmetry shapeSymmetry) {
+        Point oldCenterOffset = shape.getCenterTransformed(initialSymmetry);
+        Point newSymCenterOffset = shape.getCenterTransformed(shapeSymmetry);
+        Point symCenter = initialAbsCenter.sub(oldCenterOffset).add(newSymCenterOffset);
+        return symCenter;
+    }
+    //calculates the shapes center point, in any plane transform
+    public Point getAbsoluteCenter(Symmetry shapeSymmetry, Symmetry planeSymmetry) {
+        return plane.pointAfterTransformation(getAbsoluteCenter(shapeSymmetry), planeSymmetry);
     }
     
-    public void setCertain(boolean certain) {
-        this.certain = certain;
+    public AbsoluteRule getAbsoluteRule(Symmetry shapeSymmetry, Symmetry planeSymmetry) {
+        return new AbsoluteRule(code, shapeSymmetry.apply(planeSymmetry), getAbsoluteCenter(shapeSymmetry, planeSymmetry));
+    }
+
+    public RelativeRule getRelativeRule(Symmetry shapeSymmetry) {
+        return new RelativeRule(code, shapeSymmetry, getAbsoluteCenter(shapeSymmetry).sub(mainCenter));
+    }
+
+    public List<Symmetry> getPotentialSymmetries() {
+        return potentialSymmetries;
+    }
+
+    public boolean followsRules(Symmetry symmetry) {
+        Boolean[] neighboursPresent = new Boolean[NUMBER_OF_SHAPES];
+        Arrays.fill(neighboursPresent, false);
+        neighboursPresent[code-1] = true;
+        validNeigbourRules.get(symmetry).forEach(r -> neighboursPresent[r.declaringCode-1] = true);
+        return Arrays.stream(neighboursPresent).allMatch(b -> b == true);
+    }
+    public List<AbsoluteRule> getPotentialAbsoluteRules(Symmetry planeSymmetry) {
+        return getPotentialSymmetries().stream()
+        .map(sym -> getAbsoluteRule(sym, planeSymmetry)).toList();
+    }
+    public List<RelativeRule> getPotentialRelativeRules() {
+        return getPotentialSymmetries().stream()
+        .map(this::getRelativeRule).toList();
+    }
+
+    public void discountSymmetry(Symmetry sym) {
+        validNeigbourRules.remove(sym);
+        potentialSymmetries.remove(sym);
+        if(potentialSymmetries.size() == 1) {
+            setTrueSymmetry(sym);
+        }
+    }
+
+    public void setTrueSymmetry(Symmetry sym) {
+        certain = true;
+        trueSymmetry = sym;
+        trueRelRule = getRelativeRule(sym);
+        trueAbsRule = getAbsoluteRule(sym, Symmetry.IDENTITY);
     }
 
     @Override
     public String toString() {
-        return code + ":" + center + " = " + symmetry.name() + (certain ? "" : "?");
+        return code + (certain ? "🗸" : "?") 
+        + "\nPotential Center Info:\n\t" 
+        + potentialSymmetries.stream()
+        .map(sym -> (
+            sym.simple() 
+            + " : [abs=" 
+            + getAbsoluteCenter(sym) 
+            + "],[rel=" 
+            + getRelativeRule(sym) 
+            + "]"
+        )).toList();
     }
 }
+
+abstract class PositionRule {
+    public Symmetry symmetry;
+    public Point point;
+
+    public PositionRule(Symmetry symmetry, Point point) {
+        this.symmetry = symmetry;
+        this.point = point;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(!(obj instanceof PositionRule rule)) return false;
+        boolean sameSymmetry = symmetry.equals(rule.symmetry);
+        boolean samePoint = point.equals(rule.point);
+        return (sameSymmetry && samePoint);
+    }
+
+    @Override
+    public String toString() {
+        return symmetry.simple() + "@" + point;
+    }
+}
+//you will find a shape with this code and this symmetry at this point
+//only valid for one planeTransform
+class AbsoluteRule extends PositionRule {
+    public int codeAtPlace;
+
+    public AbsoluteRule(int codeAtPlace, Symmetry symmetry, Point point) {
+        super(symmetry, point);
+        this.codeAtPlace = codeAtPlace;
+    }
+
+    @Override
+    public String toString() {
+        return "{" + codeAtPlace + "@" + super.toString() + "}";
+    }
+}
+//this code declares that you will find a shape with this symmetry at this point
+class RelativeRule extends PositionRule {
+    public int declaringCode;
+    public boolean incorrect = false;
+
+    public RelativeRule(int declaringCode, Symmetry symmetry, Point point) {
+        super(symmetry, point);
+        this.declaringCode = declaringCode;
+    }
+
+    public RelativeRule adjust(Point change) {
+        return new RelativeRule(declaringCode, symmetry, point.add(change));
+    }
+
+    public boolean isIncorrect() {
+        return incorrect;
+    }
+
+    public void falsify() {
+        incorrect = true;
+    }
+
+    @Override
+    public String toString() {
+        return "{" + declaringCode + ":" + super.toString() + (incorrect ? "X" : "?") + "}";
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(!(obj instanceof RelativeRule rule)) return false;
+        return super.equals(obj) && rule.declaringCode == declaringCode;
+    }
+}
+
