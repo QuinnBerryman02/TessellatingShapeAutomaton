@@ -2,17 +2,15 @@ package src;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.awt.Color;
 
 import src.GeometryUtil.*;
-import src.Util.*;
 
 public class RegularTessellation {
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private Shape shape;
     private Matrix<Integer> mat;
     private int W;
@@ -80,7 +78,11 @@ public class RegularTessellation {
         return defShapes.get(1);
     }
 
-    public boolean borderTilesOccupied() {
+    public boolean isValidTessellation() {
+        return areAllBorderTilesOccupied() && doBorderShapesFollowRules();
+    }
+
+    public boolean areAllBorderTilesOccupied() {
         return shape.findBorderPoints().stream().allMatch(p -> {
             return mat.get(p.y() + center.y(), p.x() + center.x()) != 0;
         });
@@ -100,23 +102,23 @@ public class RegularTessellation {
         return list.stream().filter(r -> r.equals(relRule)).findFirst().orElse(null);
     }
 
-    public boolean borderShapesFollowRules() {
+    public boolean doBorderShapesFollowRules() {
         Map<Symmetry,Matrix<Integer>> planeTransformations = new HashMap<>();
         planeTransformations.put(Symmetry.IDENTITY, mat);
         List<RelativeRule> relativeRules = getAllRelativeRules();
-        System.out.println("relative centers : " + relativeRules);
+        if(DEBUG) System.out.println("relative centers : " + relativeRules);
         for(DefShape currentShape : getBorderShapes()) {
-            System.out.println("checking  " + currentShape.code);  
+            if(DEBUG) System.out.println("checking  " + currentShape.code);  
             for (Symmetry shapeSymmetry : currentShape.getPotentialSymmetries()) {
                 Symmetry planeSymmetry = shapeSymmetry.inversion();
                 Matrix<Integer> plane = planeTransformations.computeIfAbsent(planeSymmetry, mat::transform);
                 Point currentCenter = currentShape.getAbsoluteCenter(shapeSymmetry, planeSymmetry);
-                System.out.println("shape sym : " + shapeSymmetry + " plane sym : " + planeSymmetry);
-                plane.print();
-                System.out.println("abs center : " + currentCenter);
+                if(DEBUG) System.out.println("shape sym : " + shapeSymmetry + " plane sym : " + planeSymmetry);
+                if(DEBUG) plane.print();
+                if(DEBUG) System.out.println("abs center : " + currentCenter);
 
                 List<AbsoluteRule> absoluteRules = getAllAbsoluteRules(planeSymmetry);
-                System.out.println("abs : " + absoluteRules);
+                if(DEBUG) System.out.println("abs : " + absoluteRules);
                 List<Integer> failedCodes = new ArrayList<>(); //not sure if this is 100% legit, but i think it holds
                 for (RelativeRule rule : relativeRules) {
                     RelativeRule trueRule = rule.adjust(currentCenter);
@@ -145,21 +147,21 @@ public class RegularTessellation {
                     if(DEBUG) System.out.println(trueRule + " NO MATCH => failed");
                     failedCodes.add(code);
                 }   
-                System.out.println("shape " + currentShape.code + " in symmetry " + shapeSymmetry + " was " + (currentShape.followsRules(shapeSymmetry) ? "valid" : "invalid"));   
+                if(DEBUG) System.out.println("shape " + currentShape.code + " in symmetry " + shapeSymmetry + " was " + (currentShape.followsRules(shapeSymmetry) ? "valid" : "invalid"));   
             }
         }
         for (DefShape shape : getBorderShapes()) {
-            System.out.println(shape.code + "'s neighbours = " + shape.validNeigbourRules);
+            if(DEBUG) System.out.println(shape.code + "'s neighbours = " + shape.validNeigbourRules);
         }
         reduceRules();
         for (DefShape shape : getBorderShapes()) {
-            System.out.println(shape.code + " neighbours = " + shape.validNeigbourRules);
+            if(DEBUG) System.out.println(shape.code + " neighbours = " + shape.validNeigbourRules);
         }
-        return false;
+        return getBorderShapes().stream().allMatch(DefShape::followsRules);
     }
 
     public List<RelativeRule> removeInvalidSymmetries(List<RelativeRule> knownIncorrectRules) {
-        System.out.println("REMOVING INCORRECT SHAPE SYMMETRIES");
+        if(DEBUG) System.out.println("REMOVING INCORRECT SHAPE SYMMETRIES");
         List<RelativeRule> newIncorrectRules = new ArrayList<>();
         for (DefShape shape : getBorderShapes()) {
             for (Symmetry symmetry : List.copyOf(shape.validNeigbourRules.keySet())) {
@@ -170,7 +172,7 @@ public class RegularTessellation {
                     newIncorrectRules.add(rule);
                     shape.discountSymmetry(symmetry);
                 }
-                System.out.println("shape " + rule + " is " + (valid ? "valid" : "invalid"));
+                if(DEBUG) System.out.println("shape " + rule + " is " + (valid ? "valid" : "invalid"));
             }
         }
         return newIncorrectRules;
@@ -203,9 +205,9 @@ public class RegularTessellation {
         regTes2.addShape(Symmetry.ROT_180, new Point(4, 3));
         regTes2.addShape(Symmetry.ROT_180, new Point(7, 8));
 
-        System.out.println(regTes2.borderTilesOccupied()); 
         regTes2.mat.print();
-        regTes2.borderShapesFollowRules();
+        System.out.println("border tiles occupied : " + regTes2.areAllBorderTilesOccupied()); 
+        System.out.println("border shapes following rules : " + regTes2.doBorderShapesFollowRules());
     }
 }
 
@@ -265,6 +267,10 @@ class DefShape {
 
     public List<Symmetry> getPotentialSymmetries() {
         return potentialSymmetries;
+    }
+
+    public boolean followsRules() {
+        return potentialSymmetries.stream().anyMatch(sym -> followsRules(sym));
     }
 
     public boolean followsRules(Symmetry symmetry) {
@@ -363,14 +369,6 @@ class RelativeRule extends PositionRule {
 
     public RelativeRule adjust(Point change) {
         return new RelativeRule(declaringCode, symmetry, point.add(change));
-    }
-
-    public boolean isIncorrect() {
-        return incorrect;
-    }
-
-    public void falsify() {
-        incorrect = true;
     }
 
     @Override
