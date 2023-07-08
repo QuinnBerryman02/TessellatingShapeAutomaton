@@ -11,7 +11,7 @@ import java.awt.Color;
 
 import src.GeometryUtil.*;
 
-public class RegularTessellation {
+public class TessellationSetup {
     private static final boolean DEBUG = false;
     private Shape shape;
     private Matrix<Integer> mat;
@@ -22,7 +22,7 @@ public class RegularTessellation {
     private Point center;
     private Color[] colorCodes = {Color.black, Color.cyan, Color.pink, Color.green, Color.yellow, Color.red,  Color.magenta, Color.orange, Color.lightGray, Color.darkGray};
 
-    public RegularTessellation(Shape shape) {
+    public TessellationSetup(Shape shape) {
         this.shape = shape;
         int shapeWidth = shape.getBitmap().getWidth();
         int shapeHeight = shape.getBitmap().getHeight();
@@ -214,6 +214,8 @@ public class RegularTessellation {
         defShapes.values().forEach(bs -> mainShape.validNeigbourRules.get(mainShape.trueSymmetry).add(bs.trueRelRule));
     }
 
+    public void print() { mat.print(); }
+
     public void report() {
         mat.print();
         System.out.println("border tiles occupied : " + areAllBorderTilesOccupied()); 
@@ -234,8 +236,13 @@ public class RegularTessellation {
         }
     }
 
+    public Tessellation toTessellation() {
+        if(!isValidTessellation()) return null;
+        return new Tessellation(shape, getMainShape().validNeigbourRules.get(Symmetry.IDENTITY));
+    }
+
     public static void main(String[] args) {
-        RegularTessellation rt1 = new RegularTessellation(Shape.SMALL_L_SHAPE);
+        TessellationSetup rt1 = new TessellationSetup(Shape.SMALL_L_SHAPE);
         rt1.addShape(Symmetry.IDENTITY, new Point(0, 2));
         rt1.addShape(Symmetry.IDENTITY, new Point(4, 2));
         rt1.addShape(Symmetry.ROT_90, new Point(2, 1));
@@ -244,7 +251,7 @@ public class RegularTessellation {
         rt1.addShape(Symmetry.ROT_90, new Point(4, 4));
         rt1.report();
 
-        RegularTessellation rt2 = new RegularTessellation(Shape.JAGGED);
+        TessellationSetup rt2 = new TessellationSetup(Shape.JAGGED);
         rt2.addShape(Symmetry.IDENTITY, new Point(3, 5));
         rt2.addShape(Symmetry.IDENTITY, new Point(5, 3));
         rt2.addShape(Symmetry.ROT_180, new Point(2, 5));
@@ -253,7 +260,7 @@ public class RegularTessellation {
         rt2.addShape(Symmetry.ROT_180, new Point(7, 8));
         rt2.report();
 
-        RegularTessellation rt3 = new RegularTessellation(Shape.SQUARE);
+        TessellationSetup rt3 = new TessellationSetup(Shape.SQUARE);
         rt3.addShape(Symmetry.IDENTITY, new Point(4, 2));
         rt3.addShape(Symmetry.IDENTITY, new Point(2, 4));
         rt3.addShape(Symmetry.IDENTITY, new Point(0, 2));
@@ -435,6 +442,10 @@ class RelativeRule extends PositionRule {
     public boolean equals(Object obj) {
         if(!(obj instanceof RelativeRule rule)) return false;
         return super.equals(obj) && rule.declaringCode == declaringCode;
+    }
+
+    public RelativeRule transform(Symmetry symmetry) {
+        return new RelativeRule(declaringCode, this.symmetry.apply(symmetry), point.transform(symmetry));
     }
 }
 

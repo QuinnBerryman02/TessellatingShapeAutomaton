@@ -3,10 +3,22 @@ package src;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.lang.reflect.Array;
 import java.awt.Color;
 
 public class GeometryUtil {
+    record Vector(int vx, int vy) {
+        public Point toPoint() {
+            return new Point(vx, vy);
+        }
+
+        @Override
+        public String toString() {
+            return "<" + vx + "," + vy + ">";
+        }
+    }
+
     record Point(int x, int y) {
         public List<Point> findSurroundingPoints() {
             List<Point> points = new ArrayList<>();
@@ -26,23 +38,86 @@ public class GeometryUtil {
         public Point add(Point p) {
             return new Point(x + p.x, y + p.y);
         }
+        
+        public Point add(Vector v) {
+            return new Point(x + v.vx, y + v.vy);
+        }
 
         public Point sub(Point p) {
             return new Point(x - p.x, y - p.y);
         }
 
+        public Point sub(Vector v) {
+            return new Point(x - v.vx, y - v.vy);
+        }
+
         public Point negate() {
             return new Point(-x,-y);
+        }
+
+        public int eulerDistance() {
+            return Math.abs(x) + Math.abs(y);
+        }
+
+        public int non0EulerDistance() {
+            return eulerDistance() == 0 ? Integer.MAX_VALUE : eulerDistance();
+        }
+
+        public Point scalarMultiplyAndDivide(int mult, int divide) {
+            return new Point(x * mult / divide, y * mult / divide);
+        }
+
+        public Point matrixMultiply(Vector a, Vector b) {
+            return new Point(x * a.vx + y * b.vx, x * a.vy + y * b.vy);
+        }
+
+        public Point matrixMultiplyInverse(Vector a, Vector b) {
+            int denomDet = a.vx*b.vy - a.vy*b.vx;
+            Vector a2 = new Vector(b.vy, -a.vy);
+            Vector b2 = new Vector(-b.vx, a.vx);
+            return matrixMultiply(a2, b2).scalarMultiplyAndDivide(1, denomDet);
+        }
+
+        public Predicate<Point> toLinePredicate() {
+            return p -> x * p.y == y * p.x;
+        }
+
+        public Point pointOnRight() {
+            if(Math.abs(angle() + 0.00001) > Math.PI/2) {
+                return negate();
+            }
+            return this;
+        }
+        //from positive X axis CCW = -
+        public double angle() {
+            return Math.atan2(y, x);
         }
     
         public Point right() { return new Point(x + 1, y);}
         public Point left() { return new Point(x - 1, y);}
         public Point down() { return new Point(x, y + 1);}
         public Point up() { return new Point(x, y - 1);}
+
+        public Vector toVector() {
+            return new Vector(x, y);
+        }
     
         @Override
         public String toString() {
             return "[" + x + "," + y + "]";
+        }
+
+        public Point transform(Symmetry symmetry) {
+            return switch(symmetry) {
+                case IDENTITY -> new Point(x, y);
+                case ROT_90 -> new Point( -y, x);
+                case ROT_180 -> new Point(-x,-y);
+                case ROT_270 -> new Point( y,-x);
+                case FLIP_X -> new Point( -x, y);
+                case FLIP_Y -> new Point(  x,-y);
+                case DIAG_TR -> new Point(-y,-x);
+                case DIAG_TL -> new Point( y, x);
+            };
         }
 
     }
@@ -230,7 +305,8 @@ public class GeometryUtil {
             for (int i = 0; i < height; i++) {
                 for (int j = 0; j < width; j++) {
                     E e = data[i][j];
-                    System.out.print(colorToAsciiCode(colorMap.apply(e)) + e + " " + colorReset());
+                    if(colorMap == null) System.out.print(e + " ");
+                    else System.out.print(colorToAsciiCode(colorMap.apply(e)) + e + " " + colorReset());
                 }
                 System.out.println();
             }
