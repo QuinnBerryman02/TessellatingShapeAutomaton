@@ -10,6 +10,7 @@ import java.util.Set;
 import java.awt.Color;
 
 import src.GeometryUtil.*;
+import src.Util.*;
 
 public class TessellationSetup {
     private static final boolean DEBUG = false;

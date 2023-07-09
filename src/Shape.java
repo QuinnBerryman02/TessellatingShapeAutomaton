@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import src.GeometryUtil.*;
+import src.Util.*;
 
 public class Shape {
     private Matrix<Boolean> bitmap;

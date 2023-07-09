@@ -1,6 +1,5 @@
 package src;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -9,8 +8,10 @@ import java.util.Map;
 import java.util.Set;
 
 import src.GeometryUtil.*;
+import src.Util.*;
 
 public class Tessellation {
+    public Map<Symmetry, List<RelativeRule>> virtualNeighbourMap = new HashMap<>();
     public Map<Symmetry, Vector> offsetVectors = new HashMap<>();
     public Vector basisVector1;
     public Vector basisVector2;
@@ -21,24 +22,27 @@ public class Tessellation {
         calculateOffsetVectors(examplePointsMap);
         Set<Point> centeredPoints = getCenteredPoints(examplePointsMap);
         deriveBasisVectors(centeredPoints);
+        generateVirtualNeighbourMap(rules);
+        findBetterOffsetVectors(examplePointsMap);
+        System.out.println("Virtual Neighbours");
+        offsetVectors.keySet().forEach(s -> System.out.println(s + " " + virtualNeighbourMap.get(s)));
+        System.out.println("Offset Vectors : " + offsetVectors);
+        System.out.println("BV1 : " + basisVector1 + " with angle " + basisVector1.toPoint().angle());
+        System.out.println("BV2 : " + basisVector2 + " with angle " + basisVector2.toPoint().angle());
 
-        System.out.println(offsetVectors);
-        System.out.println(basisVector1 + " " + basisVector1.toPoint().angle());
-        System.out.println(basisVector2 + " " + basisVector2.toPoint().angle());
-        System.out.println(realToVirtual(basisVector1.toPoint(), Symmetry.IDENTITY));
-        System.out.println(realToVirtual(basisVector2.toPoint(), Symmetry.IDENTITY));
-
-        // for (var entry : examplePointsMap.entrySet()) {
-        //     for(Point p : entry.getValue()) {
-        //         Point centered = p.sub(offsetVectors.get(entry.getKey()));
-        //         Point virtual = realToVirtual(p, entry.getKey());
-        //         Point realAgain = virtualToReal(virtual, entry.getKey());
-        //         Point realButDecentered = realAgain.sub(offsetVectors.get(entry.getKey()));
-        //         System.out.println(p + " -> " + centered + " -> " + virtual + " -> " + realButDecentered + " -> " + realAgain + " >>> " + (p.equals(realAgain)));
-        //     }
-        // }
-        // Point test = new Point(3,3);
-        // System.out.println(test.matrixMultiply(new Vector(2, 1), new Vector(1, 2)));
+        Parallelogram gram = new Parallelogram(basisVector1, basisVector2);
+        Matrix<String> mat =  new Matrix<>(17, 17, ".");
+        for (int i = 0; i < mat.getHeight(); i++) {
+            for (int j = 0; j < mat.getWidth(); j++) {
+                int x = j - 8;
+                int y = i - 8;
+                mat.set(i, j, gram.inside(new Point(x, y)) ? "#" : ".");
+            }
+        }
+        offsetVectors.entrySet().forEach(e -> mat.set(e.getValue().vy()+8, e.getValue().vx()+8, e.getKey().simple()));
+        mat.print();
+        System.out.println();
+        System.out.println();
     }
 
     //creating the relative rule map
@@ -46,13 +50,14 @@ public class Tessellation {
         Map<Symmetry, List<RelativeRule>> relativeRuleMap = new HashMap<>();
         relativeRuleMap.put(Symmetry.IDENTITY, rules);
         for (Symmetry sym : rules.stream().map(r -> r.symmetry).distinct().toList()) {
-            List<RelativeRule> transformedRules = new ArrayList<>();
-            for (RelativeRule relativeRule : rules) {
-                transformedRules.add(relativeRule.transform(sym));
-            }
-            relativeRuleMap.put(sym, transformedRules);
+            updateRelativeRuleMap(sym, relativeRuleMap);
         }
         return relativeRuleMap;
+    }
+
+    private void updateRelativeRuleMap(Symmetry symmetry, Map<Symmetry, List<RelativeRule>> relativeRuleMap) {
+        if(relativeRuleMap.containsKey(symmetry)) return;
+        relativeRuleMap.put(symmetry, relativeRuleMap.get(Symmetry.IDENTITY).stream().map(r -> r.transform(symmetry)).toList());
     }
     //creating the example points for each symmetry
     private Map<Symmetry, Set<Point>> generateMoreExamplePoints(Map<Symmetry, List<RelativeRule>> relativeRuleMap) {
@@ -60,6 +65,10 @@ public class Tessellation {
         relativeRuleMap.keySet().forEach(s -> examplePointsMap.put(s, new HashSet<>()));
         for (RelativeRule firstRule : relativeRuleMap.get(Symmetry.IDENTITY)) {
             for(RelativeRule secondRule : relativeRuleMap.get(firstRule.symmetry)) {
+                if(!examplePointsMap.containsKey(secondRule.symmetry)) {
+                    updateRelativeRuleMap(secondRule.symmetry, relativeRuleMap);
+                    examplePointsMap.put(secondRule.symmetry, new HashSet<>());
+                }
                 examplePointsMap.get(secondRule.symmetry).add(firstRule.point.add(secondRule.point)); 
             }
         }
@@ -90,8 +99,14 @@ public class Tessellation {
 
         Point secondBasisEstimate = basisVector1.toPoint().transform(Symmetry.ROT_90);
 
-        basisVector2 = centeredPoints.stream().filter(secondBasisEstimate.toLinePredicate())
+        basisVector2 = centeredPoints.stream().filter(secondBasisEstimate.toLine()::pointOnLine)
         .min(Comparator.comparingInt(Point::non0EulerDistance)).orElse(null).pointOnRight().toVector();
+        
+        if(basisVector1.toPoint().angle() > basisVector2.toPoint().angle()) {
+            Vector temp = basisVector1;
+            basisVector1 = basisVector2;
+            basisVector2 = temp;
+        }
     }
 
     public Point realToVirtual(Point point, Symmetry symmetry) {
@@ -103,6 +118,24 @@ public class Tessellation {
         Vector offset = offsetVectors.get(symmetry);
         return point.matrixMultiply(basisVector1, basisVector2).add(offset);
     } 
+
+    public void generateVirtualNeighbourMap(List<RelativeRule> rules) {
+        List<RelativeRule> virtualRules = rules.stream().map(r -> {
+            return new RelativeRule(r.declaringCode, r.symmetry, realToVirtual(r.point, r.symmetry));
+        }).toList();
+        virtualNeighbourMap.put(Symmetry.IDENTITY, virtualRules);
+        for (Symmetry symmetry : offsetVectors.keySet().stream().filter(s -> !s.equals(Symmetry.IDENTITY)).toList()) {
+            virtualNeighbourMap.put(symmetry, virtualRules.stream().map(r -> r.transform(symmetry)).toList());
+        }
+    }
+
+    public void findBetterOffsetVectors(Map<Symmetry, Set<Point>> examplePointsMap) {
+        Parallelogram gram = new Parallelogram(basisVector1, basisVector2);
+        for (Symmetry symmetry : examplePointsMap.keySet()) {
+            Point offset = examplePointsMap.get(symmetry).stream().filter(gram::inside).min(Comparator.comparingInt(Point::eulerDistance)).orElse(null);
+            offsetVectors.put(symmetry, offset.toVector());
+        }
+    }
 
     public static void main(String[] args) {
         TessellationSetup ts1 = new TessellationSetup(Shape.SMALL_L_SHAPE);

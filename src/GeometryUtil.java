@@ -2,10 +2,8 @@ package src;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.lang.reflect.Array;
-import java.awt.Color;
+
+import src.Util.*;
 
 public class GeometryUtil {
     record Vector(int vx, int vy) {
@@ -16,6 +14,10 @@ public class GeometryUtil {
         @Override
         public String toString() {
             return "<" + vx + "," + vy + ">";
+        }
+
+        public Vector add(Vector v) {
+            return new Vector(vx + v.vx, vy + v.vy);
         }
     }
 
@@ -78,8 +80,15 @@ public class GeometryUtil {
             return matrixMultiply(a2, b2).scalarMultiplyAndDivide(1, denomDet);
         }
 
-        public Predicate<Point> toLinePredicate() {
-            return p -> x * p.y == y * p.x;
+        public Line lineBetween(Point q) {
+            float A = q.y - y;
+            float B = x - q.x;
+            float C = (q.x * y) - (x * q.y);
+            return new Line(A,B,C);
+        }
+
+        public Line toLine() {
+            return lineBetween(new Point(0, 0));
         }
 
         public Point pointOnRight() {
@@ -120,6 +129,82 @@ public class GeometryUtil {
             };
         }
 
+        public static Point ORIGIN = new Point(0, 0);
+
+    }
+
+    record Line(float A, float B, float C) {
+        public float eval(float x) {
+            return -A/B*x - C/B;
+        }
+        
+        public boolean pointOnLine(Point p) {
+            return Util.floatCompare(A*p.x + B*p.y + C, 0f); 
+        }
+
+        public float slope() {
+            if(B == 0) return Integer.MAX_VALUE;
+            return -A / B;
+        }
+
+        public float intercept() {
+            if(B == 0) return Integer.MAX_VALUE;
+            return -C / B;
+        }
+
+        public Pair<Float, Float> intersection(Line l) {
+            if(Util.floatCompare(slope(), l.slope())) return null;
+            float x = (-C - B*l.intercept()) / (A + B*l.slope());
+            float y = eval(x);
+            return new Pair<>(x, y);
+        }
+
+        public float signedDistTo(Point p) {
+            float denom = (float)Math.sqrt(A*A + B*B);
+            float num = A*p.x + B*p.y + C;
+            return num / denom;
+        }
+
+        @Override
+        public String toString() {
+            return A + "x + " + B + "y + " + C;
+        }
+    }
+
+    static class Parallelogram {
+        public Point[] points = new Point[4];
+        public Line[] lines = new Line[4];
+        private boolean CCW;
+        
+        public Parallelogram(Vector bv1, Vector bv2) {
+            this(Point.ORIGIN, bv1.toPoint(), bv1.add(bv2).toPoint(), bv2.toPoint());
+        }
+        public Parallelogram(Point a, Point b, Point c, Point d) {
+            double ang1 = b.sub(a).angle();
+            double ang2 = d.sub(a).angle();
+            if(ang1 < ang2) CCW = false;
+            else if(ang1 > ang2) CCW = true;
+            else throw new IllegalArgumentException("Not a well formed parallelogram");
+            points[0] = a;
+            points[1] = b;
+            points[2] = c;
+            points[3] = d;
+            for(int i=0;i<4;i++) {
+                lines[i] = points[i].lineBetween(points[(i+1)%4]);
+            }
+        }
+
+        public boolean inside(Point p) {
+            float[] distances = new float[4];
+            for(int i=0;i<4;i++) {
+                distances[i] = lines[i].signedDistTo(p);
+            }
+            boolean allInside = true;
+            for(int i=0;i<4;i++) {
+                allInside = allInside && (CCW ? Util.zeroOrPos(distances[i]) : Util.zeroOrNeg(distances[i]));
+            }
+            return allInside;
+        }
     }
     
     record Rect(int x, int y, int width, int height) {
@@ -187,195 +272,19 @@ public class GeometryUtil {
             };
         }
     }
-    
-    public static class Matrix<E> {
-        private E[][] data;
-        private int width;
-        private int height;
-        private Function<E, Color> colorMap;
-    
-        public Matrix(E[][] data) {
-            this.width = data[0].length;
-            this.height = data.length;
-            this.data = data;
-        }
 
-        public void setColorMap(Function<E, Color> colorMap) {
-            this.colorMap = colorMap;
-        }
-
-        @SuppressWarnings("unchecked")
-        public Matrix(int width, int height, Class<?> clazz) {
-            this((E[][])Array.newInstance(clazz, height, width));
-        }
-
-        public Matrix(int width, int height, E initValue) {
-            this(width, height, initValue.getClass());
-            setInitialValues(initValue);
-        }
-    
-        public int getWidth() {
-            return width;
-        }
-
-        public void setInitialValues(E value) {
-            for (int i = 0; i < height; i++) {
-                for (int j = 0; j < width; j++) {
-                    data[i][j] = value;
-                }
+    public static void main(String[] args) {
+        Parallelogram par = new Parallelogram(new Point(0,0), new Point(5,5), new Point(3,7), new Point(-2,2));
+        Parallelogram par2 = new Parallelogram(new Point(0,0), new Point(5,0), new Point(5,5), new Point(0,5));
+        Parallelogram par3 = new Parallelogram(new Point(0,0), new Point(0,5), new Point(5,5), new Point(5,0));
+        Matrix<Boolean> mat =  new Matrix<>(21, 21, false);
+        for (int i = 0; i < mat.getHeight(); i++) {
+            for (int j = 0; j < mat.getWidth(); j++) {
+                int x = j - 10;
+                int y = i - 10;
+                mat.set(i, j, par3.inside(new Point(x, y)));
             }
         }
-    
-        public int getHeight() {
-            return height;
-        }
-    
-        public E[][] getData() {
-            return data;
-        }
-
-        public E get(int i, int j) {
-            return data[i][j];
-        }
-
-        public void set(int i, int j, E value) {
-            data[i][j] = value;
-        }
-    
-        public Matrix<E> xflip() {
-            return iterator(width, height, p -> p.y, p -> p.x, p -> p.y, p -> width - p.x - 1);
-        }
-    
-        public Matrix<E> yflip() {
-            return iterator(width, height, p -> p.y, p -> p.x, p -> height - p.y - 1, p -> p.x);
-        }
-    
-        public Matrix<E> rotate90CW() {
-            return iterator(height, width, p -> p.x, p -> height - p.y - 1, p -> p.y, p -> p.x);
-        }
-    
-        public Matrix<E> rotate90CCW() {
-            return iterator(height, width, p -> width - p.x - 1, p -> p.y, p -> p.y, p -> p.x);
-        }
-    
-        public Matrix<E> rotate180() {
-            return iterator(width, height, p -> p.y, p -> p.x, p -> height - p.y - 1, p -> width - p.x - 1);
-        }
-    
-        public Matrix<E> flipDiagTR() {
-            return xflip().rotate90CW();
-        }
-    
-        public Matrix<E> flipDiagTL() {
-            return yflip().rotate90CW();
-        }
-    
-        public Matrix<E> transform(Symmetry transformation) {
-            return switch(transformation) {
-                case IDENTITY -> this;
-                case ROT_90 -> rotate90CW();
-                case ROT_180 -> rotate180();
-                case ROT_270 -> rotate90CCW();
-                case FLIP_X -> xflip();
-                case FLIP_Y -> yflip();
-                case DIAG_TR -> flipDiagTR();
-                case DIAG_TL -> flipDiagTL();
-            };
-        }
-
-        public Rect toRect() {
-            return new Rect(0,0,width,height);
-        }
-
-        @SuppressWarnings("unchecked")
-        public Matrix<E> iterator(int w, int h, Function<Point,Integer> newY, Function<Point,Integer> newX, Function<Point,Integer> oldY, Function<Point,Integer> oldX) {
-            E[][] newData = (E[][])Array.newInstance(data[0][0].getClass(), h, w);
-            for (int i = 0; i < height; i++) {
-                for (int j = 0; j < width; j++) {
-                    Point p = new Point(j, i);
-                    newData[newY.apply(p)][newX.apply(p)] = data[oldY.apply(p)][oldX.apply(p)];
-                }
-            }
-            Matrix<E> newMat = new Matrix<>(newData);
-            newMat.setColorMap(colorMap);
-            return newMat;
-        }
-    
-        public void print() {
-            for (int i = 0; i < height; i++) {
-                for (int j = 0; j < width; j++) {
-                    E e = data[i][j];
-                    if(colorMap == null) System.out.print(e + " ");
-                    else System.out.print(colorToAsciiCode(colorMap.apply(e)) + e + " " + colorReset());
-                }
-                System.out.println();
-            }
-        }
-
-        private static String colorToAsciiCode(Color c) {
-            return "\033[97;48;2;" + c.getRed() + ";" + c.getGreen() + ";" + c.getBlue() + "m";
-        }
-    
-        private static String colorReset() {
-            return "\033[0m";
-        }
-    
-        public static void main(String[] args) {
-            Matrix<Integer> L = new Matrix<>(new Integer[][] {
-                {1,0},
-                {1,0},
-                {1,1},
-            });
-            L.print();
-            L.rotate90CW().print();
-            L.rotate180().print();
-            L.rotate90CCW().print();
-            L.xflip().print();
-            L.yflip().print();
-            L.flipDiagTR().print();
-            L.flipDiagTL().print();
-        }
-
-        public List<Point> findAllMatches(E value) {
-            List<Point> found = new ArrayList<>();
-            for (int i = 0; i < height; i++) {
-                for (int j = 0; j < width; j++) {
-                    if(get(i, j).equals(value)) found.add(new Point(j, i));
-                }
-            }
-            return found;
-        }
-
-        public Point pointAfterTransformation(Point p, Symmetry transformation) {
-            return switch(transformation) {
-                case IDENTITY -> new Point( p.x,                p.y);
-                case ROT_90 -> new Point(   height - p.y - 1,   p.x);
-                case ROT_180 -> new Point(  width - p.x - 1,    height - p.y - 1);
-                case ROT_270 -> new Point(  p.y,                width - p.x - 1);
-                case FLIP_X -> new Point(   width - p.x - 1,    p.y);
-                case FLIP_Y -> new Point(   p.x,                height - p.y - 1);
-                case DIAG_TR -> new Point(  height - p.y - 1,   width - p.x - 1);
-                case DIAG_TL -> new Point(  p.y,                p.x);
-            };
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if(!(obj instanceof Matrix<?> mat2)) return false;
-            try {
-                for (int i = 0; i < height; i++) {
-                    for (int j = 0; j < width; j++) {
-                        if(!data[i][j].equals(mat2.get(i, j))) return false;
-                    }
-                }
-            } catch(Exception e) {
-                return false;
-            }
-            return true;
-        }
-
-
+        mat.print(b -> b ? "#" : ".");
     }
-
-    
 }
