@@ -19,6 +19,10 @@ public class GeometryUtil {
         public Vector add(Vector v) {
             return new Vector(vx + v.vx, vy + v.vy);
         }
+
+        public Vector sub(Vector v) {
+            return new Vector(vx - v.vx, vy - v.vy);
+        }
     }
 
     record Point(int x, int y) {
@@ -69,15 +73,23 @@ public class GeometryUtil {
             return new Point(x * mult / divide, y * mult / divide);
         }
 
+        public Pair<Float, Float> floatMultiply(float f) {
+            return new Pair<>(x * f, y * f);
+        }
+
         public Point matrixMultiply(Vector a, Vector b) {
             return new Point(x * a.vx + y * b.vx, x * a.vy + y * b.vy);
+        }
+
+        public static Point fromFloatPair(Pair<Float, Float> p) {
+            return new Point((int)Math.floor(p.a) , (int)Math.floor(p.b));
         }
 
         public Point matrixMultiplyInverse(Vector a, Vector b) {
             int denomDet = a.vx*b.vy - a.vy*b.vx;
             Vector a2 = new Vector(b.vy, -a.vy);
             Vector b2 = new Vector(-b.vx, a.vx);
-            return matrixMultiply(a2, b2).scalarMultiplyAndDivide(1, denomDet);
+            return fromFloatPair(matrixMultiply(a2, b2).floatMultiply(1f / denomDet));
         }
 
         public Line lineBetween(Point q) {
