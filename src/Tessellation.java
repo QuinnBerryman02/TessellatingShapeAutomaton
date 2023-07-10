@@ -154,32 +154,28 @@ public class Tessellation {
     }
 
     public static void main(String[] args) {
-        TessellationSetup ts1 = new TessellationSetup(Shape.SMALL_L_SHAPE);
-        ts1.addShape(Symmetry.IDENTITY, new Point(0, 2));
-        ts1.addShape(Symmetry.IDENTITY, new Point(4, 2));
-        ts1.addShape(Symmetry.ROT_90, new Point(2, 1));
-        ts1.addShape(Symmetry.ROT_90, new Point(4, 1));
-        ts1.addShape(Symmetry.ROT_90, new Point(2, 4));
-        ts1.addShape(Symmetry.ROT_90, new Point(4, 4));
-        ts1.print();
-        Tessellation t1 = ts1.toTessellation();
-
-        TessellationSetup ts2 = new TessellationSetup(Shape.JAGGED);
-        ts2.addShape(Symmetry.IDENTITY, new Point(3, 5));
-        ts2.addShape(Symmetry.IDENTITY, new Point(5, 3));
-        ts2.addShape(Symmetry.ROT_180, new Point(2, 5));
-        ts2.addShape(Symmetry.ROT_180, new Point(2, 3));
-        ts2.addShape(Symmetry.ROT_180, new Point(4, 3));
-        ts2.addShape(Symmetry.ROT_180, new Point(7, 8));
-        ts2.print();
-        Tessellation t2 = ts2.toTessellation();
-
-        TessellationSetup ts3 = new TessellationSetup(Shape.SQUARE);
-        ts3.addShape(Symmetry.IDENTITY, new Point(4, 2));
-        ts3.addShape(Symmetry.IDENTITY, new Point(2, 4));
-        ts3.addShape(Symmetry.IDENTITY, new Point(0, 2));
-        ts3.addShape(Symmetry.IDENTITY, new Point(2, 0));
-        ts3.print();
-        Tessellation t3 = ts3.toTessellation();
     }
+
+    public static final Tessellation SMALL_L_2 = new TessellationSetup(Shape.SMALL_L_SHAPE,
+        new Pair<>(Symmetry.IDENTITY, new Point(0, 2)),
+        new Pair<>(Symmetry.IDENTITY, new Point(4, 2)),
+        new Pair<>(Symmetry.ROT_90, new Point(2, 1)),
+        new Pair<>(Symmetry.ROT_90, new Point(4, 1)),
+        new Pair<>(Symmetry.ROT_90, new Point(2, 4)),
+        new Pair<>(Symmetry.ROT_90, new Point(4, 4)))
+        .toTessellation();
+
+    public static final Tessellation SQUARE_1 = new TessellationSetup(Shape.SQUARE,
+        new Pair<>(Symmetry.IDENTITY, new Point(4, 2)),
+        new Pair<>(Symmetry.IDENTITY, new Point(2, 4)),
+        new Pair<>(Symmetry.IDENTITY, new Point(0, 2)),
+        new Pair<>(Symmetry.IDENTITY, new Point(2, 0))).toTessellation();
+
+    public static final Tessellation JAGGED_4 = new TessellationSetup(Shape.JAGGED,
+        new Pair<>(Symmetry.IDENTITY, new Point(3, 5)),
+        new Pair<>(Symmetry.IDENTITY, new Point(5, 3)),
+        new Pair<>(Symmetry.ROT_180, new Point(2, 5)),
+        new Pair<>(Symmetry.ROT_180, new Point(2, 3)),
+        new Pair<>(Symmetry.ROT_180, new Point(4, 3)),
+        new Pair<>(Symmetry.ROT_180, new Point(7, 8))).toTessellation();
 }

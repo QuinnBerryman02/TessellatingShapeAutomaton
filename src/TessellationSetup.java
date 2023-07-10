@@ -38,6 +38,14 @@ public class TessellationSetup {
         addShape(Symmetry.IDENTITY, center);
     }
 
+    @SafeVarargs
+    public TessellationSetup(Shape shape, Pair<Symmetry,Point>... rules) {
+        this(shape);
+        for (Pair<Symmetry,Point> rule : rules) {
+            addShape(rule.a, rule.b);
+        }
+    }
+
     public boolean addShape(Symmetry transformation, Point center) {
         DefShape defShape = new DefShape(transformation, center);
         Point transformedShapeCenter = shape.getCenterTransformed(transformation);
@@ -240,33 +248,6 @@ public class TessellationSetup {
     public Tessellation toTessellation() {
         if(!isValidTessellation()) return null;
         return new Tessellation(shape, getMainShape().validNeigbourRules.get(Symmetry.IDENTITY));
-    }
-
-    public static void main(String[] args) {
-        TessellationSetup rt1 = new TessellationSetup(Shape.SMALL_L_SHAPE);
-        rt1.addShape(Symmetry.IDENTITY, new Point(0, 2));
-        rt1.addShape(Symmetry.IDENTITY, new Point(4, 2));
-        rt1.addShape(Symmetry.ROT_90, new Point(2, 1));
-        rt1.addShape(Symmetry.ROT_90, new Point(4, 1));
-        rt1.addShape(Symmetry.ROT_90, new Point(2, 4));
-        rt1.addShape(Symmetry.ROT_90, new Point(4, 4));
-        rt1.report();
-
-        TessellationSetup rt2 = new TessellationSetup(Shape.JAGGED);
-        rt2.addShape(Symmetry.IDENTITY, new Point(3, 5));
-        rt2.addShape(Symmetry.IDENTITY, new Point(5, 3));
-        rt2.addShape(Symmetry.ROT_180, new Point(2, 5));
-        rt2.addShape(Symmetry.ROT_180, new Point(2, 3));
-        rt2.addShape(Symmetry.ROT_180, new Point(4, 3));
-        rt2.addShape(Symmetry.ROT_180, new Point(7, 8));
-        rt2.report();
-
-        TessellationSetup rt3 = new TessellationSetup(Shape.SQUARE);
-        rt3.addShape(Symmetry.IDENTITY, new Point(4, 2));
-        rt3.addShape(Symmetry.IDENTITY, new Point(2, 4));
-        rt3.addShape(Symmetry.IDENTITY, new Point(0, 2));
-        rt3.addShape(Symmetry.IDENTITY, new Point(2, 0));
-        rt3.report();
     }
 
     class DefShape {
