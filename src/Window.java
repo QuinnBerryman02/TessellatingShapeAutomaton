@@ -27,7 +27,7 @@ public class Window extends JFrame implements MouseListener, MouseMotionListener
 
         plane = new Plane(PLANE_SIZE, PLANE_SIZE);
 
-        Tessellation tes = Tessellation.BOWL_6;
+        Tessellation tes = Tessellation.SMALL_L_2;
         tes.drawToPlane(plane);
         repaint();
     }

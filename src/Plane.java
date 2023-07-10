@@ -21,7 +21,6 @@ public class Plane {
                 image.setRGB(j, i, DEF_COLOR.getRGB());
             }
         }
-        
     }
 
     public BufferedImage getImage() {

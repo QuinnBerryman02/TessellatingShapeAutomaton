@@ -109,21 +109,24 @@ public class HashGraph<K1,K2,V> {
             public List<KeyPair> neighbourKeyPairs() {
                 return neighbourFunction.apply(getKeyPair());
             }
-            //finds all the nodes neighbours in the graph, or null if there isnt a node at the specified location
+            //gets the nodes neighbours, or null if they arent present
             public List<Node> getNeighbours() {
                 return neighbourKeyPairs()
                 .stream().map(HashGraph.this::get).toList();
             }
-
+            //get neighbours that are present
+            public List<Node> getPresentNeighbours() {
+                return getNeighbours().stream().filter(n -> n != null).toList();
+            }
+            //get neighbours that are present and not visited, and set them to visited
             private List<Node> getUnvisitedNeighbours() {
                 return getNeighbours().stream().filter(n -> {
                     if(n == null || n.visited) return false;
                     return (n.visited = true);
                 }).toList();
             }
-    
-            //generates all non present neighbours of a node with starting value v
-            public void generateNeighbours(V value) {
+            //creates all non present neighbours of a node with starting value v
+            public void createNeighbours(V value) {
                 neighbourKeyPairs().stream().filter(kp -> !isPresent(kp)).forEach(kp -> put(kp, value));
             }
     

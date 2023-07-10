@@ -20,7 +20,8 @@ public class Tessellation {
     public Vector basisVector1;
     public Vector basisVector2;
     public HashGraph<Point,Symmetry,Boolean> hashGraph = new HashGraph<>();
-    public Color[] colorCodes = {Color.cyan, Color.pink, Color.green, Color.yellow, Color.red,  Color.magenta, Color.orange, Color.lightGray, Color.darkGray};
+    public static Color[] colorCodes = {Color.cyan, Color.pink, Color.green, Color.yellow, Color.red,  Color.magenta, Color.orange, Color.lightGray, Color.darkGray};
+    public static Color[] coolColorCodes = {new Color(3,51,71), new Color(129,160,225), new Color(8,142,199), new Color(150,212,203)};
 
     public Tessellation(Shape shape, List<RelativeRule> rules) {
         this.shape = shape;
@@ -137,23 +138,41 @@ public class Tessellation {
 
         var node = hashGraph.put(new Point(0,0), Symmetry.IDENTITY, true);
         for(int i=0;i<20;i++) {
-            hashGraph.traverse(node).forEach(n -> n.generateNeighbours(true));
+            hashGraph.traverse(node).forEach(n -> n.createNeighbours(true));
         }
     }
 
     public void drawToPlane(Plane plane) {
-        hashGraph.traverse(hashGraph.get(Point.ORIGIN, Symmetry.IDENTITY)).forEach(n -> {
-            placeShape(n.getKey(), shapeCenter(n).add(plane.center()), plane);
-        });
+        Rect rect = new Rect(0, 0, plane.getImage().getWidth(), plane.getImage().getHeight());
+        Symmetry symmetry;
+        Point point;
+        Color color = Color.white;
+        List<Color> neighbourColors;
+        for (var node : hashGraph.traverse(hashGraph.get(Point.ORIGIN, Symmetry.IDENTITY))) {
+            symmetry = node.getKey();
+            point = shapeCenter(node).add(plane.center());
+            neighbourColors = node.getPresentNeighbours().stream().map(n -> {
+                return shapeCenter(n).add(plane.center());
+            }).map(p -> {
+                if(!rect.inside(p)) return 0;
+                return plane.getImage().getRGB(p.x(), p.y());
+            }).distinct().map(i -> new Color(i, true)).toList();
+            for(int i=0;i<4;i++) {
+                if(neighbourColors.contains(coolColorCodes[i])) continue;
+                else color = coolColorCodes[i]; break;
+            }
+            placeShape(symmetry, point, color, plane);
+        }
     }
 
-    public boolean placeShape(Symmetry symmetry, Point center, Plane plane) {
+    public boolean placeShape(Symmetry symmetry, Point center, Color color, Plane plane) {
         Point transformedShapeCenter = shape.getCenterTransformed(symmetry);
         Point bitmapTL = center.sub(transformedShapeCenter);
-        return plane.placeBitmap(bitmapTL, shape.getBitmap().transform(symmetry), colorCodes[symmetry.ordinal()]);
+        return plane.placeBitmap(bitmapTL, shape.getBitmap().transform(symmetry), color);
     }
 
     public static void main(String[] args) {
+        
     }
 
     public static final Tessellation SMALL_L_2 = new TessellationSetup(Shape.SMALL_L_SHAPE,
