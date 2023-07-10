@@ -285,18 +285,6 @@ public class GeometryUtil {
         }
     }
 
-    public static void main(String[] args) {
-        Parallelogram par = new Parallelogram(new Point(0,0), new Point(5,5), new Point(3,7), new Point(-2,2));
-        Parallelogram par2 = new Parallelogram(new Point(0,0), new Point(5,0), new Point(5,5), new Point(0,5));
-        Parallelogram par3 = new Parallelogram(new Point(0,0), new Point(0,5), new Point(5,5), new Point(5,0));
-        Matrix<Boolean> mat =  new Matrix<>(21, 21, false);
-        for (int i = 0; i < mat.getHeight(); i++) {
-            for (int j = 0; j < mat.getWidth(); j++) {
-                int x = j - 10;
-                int y = i - 10;
-                mat.set(i, j, par3.inside(new Point(x, y)));
-            }
-        }
-        mat.print(b -> b ? "#" : ".");
-    }
+    public record Range(int min, int max) {}
+    public record DoubleRange(Range r1, Range r2) {}
 }

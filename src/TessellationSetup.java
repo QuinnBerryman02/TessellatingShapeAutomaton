@@ -39,11 +39,20 @@ public class TessellationSetup {
     }
 
     @SafeVarargs
-    public TessellationSetup(Shape shape, Pair<Symmetry,Point>... rules) {
+    public TessellationSetup(Shape shape, Pair<Symmetry,Point>... relativeRules) {
         this(shape);
-        for (Pair<Symmetry,Point> rule : rules) {
-            addShape(rule.a, rule.b);
+        for (Pair<Symmetry,Point> rule : relativeRules) {
+            addShape(rule.a, rule.b.add(center));
         }
+    }
+
+    public void reset() {
+        mat.setorator((i,j) -> 0);
+        defShapes.clear();
+        favouredSymetries.clear();
+        favouredSymetries.add(Symmetry.IDENTITY);
+        DefShape.NUMBER_OF_SHAPES = 0;
+        addShape(Symmetry.IDENTITY, center);
     }
 
     public boolean addShape(Symmetry transformation, Point center) {
@@ -91,6 +100,7 @@ public class TessellationSetup {
     }
 
     public boolean isValidTessellation() {
+        print();
         return areAllBorderTilesOccupied() && doBorderShapesFollowRules();
     }
 
@@ -98,6 +108,12 @@ public class TessellationSetup {
         return shape.findBorderPoints().stream().allMatch(p -> {
             return mat.get(p.y() + center.y(), p.x() + center.x()) != 0;
         });
+    }
+
+    public int numberOfBorderTilesOccupied() {
+        return (int)shape.findBorderPoints().stream().filter(p -> {
+            return mat.get(p.y() + center.y(), p.x() + center.x()) != 0;
+        }).count();
     }
 
     public List<AbsoluteRule> getAllAbsoluteRules(Symmetry planeSymmetry) {

@@ -1,9 +1,6 @@
 package src;
 import javax.swing.*;
 
-import src.GeometryUtil.Symmetry;
-import src.GeometryUtil.Point;
-
 import java.awt.event.*;
 import java.awt.*;
 
@@ -30,7 +27,7 @@ public class Window extends JFrame implements MouseListener, MouseMotionListener
 
         plane = new Plane(PLANE_SIZE, PLANE_SIZE);
 
-        Tessellation tes = Tessellation.SQUARE_1;
+        Tessellation tes = Tessellation.BOWL_6;
         tes.drawToPlane(plane);
         repaint();
     }

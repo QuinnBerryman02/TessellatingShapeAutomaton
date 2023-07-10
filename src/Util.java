@@ -2,9 +2,8 @@ package src;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Function;
-
-import src.Util.*;
 
 import java.lang.reflect.Array;
 import java.awt.Color;
@@ -123,6 +122,14 @@ public class Util {
 
         public void set(int i, int j, E value) {
             data[i][j] = value;
+        }
+
+        public void setorator(BiFunction<Integer,Integer,E> function) {
+            for (int i = 0; i < height; i++) {
+                for (int j = 0; j < width; j++) {
+                    set(i, j, function.apply(i, j));
+                }
+            }
         }
     
         public Matrix<E> xflip() {
