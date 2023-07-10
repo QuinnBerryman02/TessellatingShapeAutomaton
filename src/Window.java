@@ -1,13 +1,16 @@
 package src;
 import javax.swing.*;
 
+import src.GeometryUtil.Symmetry;
+import src.GeometryUtil.Point;
+
 import java.awt.event.*;
 import java.awt.*;
 
 public class Window extends JFrame implements MouseListener, MouseMotionListener, MouseWheelListener {  
     DrawPanel panel;
     Plane plane;
-    final int PLANE_SIZE = 20;
+    final int PLANE_SIZE = 100;
     final int WINDOW_SIZE = 750;
 
     public Window() {
@@ -26,6 +29,18 @@ public class Window extends JFrame implements MouseListener, MouseMotionListener
         setVisible(true);
 
         plane = new Plane(PLANE_SIZE, PLANE_SIZE);
+
+        TessellationSetup ts2 = new TessellationSetup(Shape.JAGGED);
+        ts2.addShape(Symmetry.IDENTITY, new Point(3, 5));
+        ts2.addShape(Symmetry.IDENTITY, new Point(5, 3));
+        ts2.addShape(Symmetry.ROT_180, new Point(2, 5));
+        ts2.addShape(Symmetry.ROT_180, new Point(2, 3));
+        ts2.addShape(Symmetry.ROT_180, new Point(4, 3));
+        ts2.addShape(Symmetry.ROT_180, new Point(7, 8));
+        ts2.print();
+        Tessellation t2 = ts2.toTessellation();
+        t2.drawToPlane(plane);
+        repaint();
     }
 
     @Override
