@@ -2,8 +2,8 @@ package src;
 
 import java.util.Random;
 
-import src.Util.*;
-import src.GeometryUtil.*;
+import src.util.GeometryUtil.*;
+import src.datastructs.*;
 
 public class RandomTessellationFinder {
     private static Random random = new Random(System.nanoTime());

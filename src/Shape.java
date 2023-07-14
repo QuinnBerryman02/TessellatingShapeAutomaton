@@ -5,8 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import src.GeometryUtil.*;
-import src.Util.*;
+import src.util.GeometryUtil.*;
+import src.datastructs.*;
 
 public class Shape {
     private static final boolean T=true,F=false;

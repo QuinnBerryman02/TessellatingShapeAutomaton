@@ -1,4 +1,4 @@
-package src;
+package src.datastructs;
 
 import java.util.ArrayList;
 import java.util.HashMap;

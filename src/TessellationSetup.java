@@ -9,8 +9,9 @@ import java.util.Map;
 import java.util.Set;
 import java.awt.Color;
 
-import src.GeometryUtil.*;
-import src.Util.*;
+import src.util.GeometryUtil.*;
+import src.util.Util.*;
+import src.datastructs.*;
 
 public class TessellationSetup {
     private static final boolean DEBUG = false;

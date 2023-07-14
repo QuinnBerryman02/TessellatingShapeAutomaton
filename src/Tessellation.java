@@ -10,8 +10,9 @@ import java.util.function.Predicate;
 
 import java.awt.Color;
 
-import src.GeometryUtil.*;
-import src.Util.*;
+import src.datastructs.*;
+import src.util.GeometryUtil.*;
+import src.util.Util.*;
 
 public class Tessellation {
     public Shape shape;

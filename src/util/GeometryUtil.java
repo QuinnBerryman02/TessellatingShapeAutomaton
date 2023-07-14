@@ -1,12 +1,12 @@
-package src;
+package src.util;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import src.Util.*;
+import src.util.Util.*;
 
 public class GeometryUtil {
-    record Vector(int vx, int vy) {
+    public record Vector(int vx, int vy) {
         public Point toPoint() {
             return new Point(vx, vy);
         }
@@ -25,7 +25,7 @@ public class GeometryUtil {
         }
     }
 
-    record Point(int x, int y) {
+    public record Point(int x, int y) {
         public List<Point> findSurroundingPoints() {
             List<Point> points = new ArrayList<>();
             for(int i=y-1;i<=y+1;i++) {
@@ -145,13 +145,13 @@ public class GeometryUtil {
 
     }
 
-    record Line(float A, float B, float C) {
+    public record Line(float A, float B, float C) {
         public float eval(float x) {
             return -A/B*x - C/B;
         }
         
         public boolean pointOnLine(Point p) {
-            return Util.floatCompare(A*p.x + B*p.y + C, 0f); 
+            return NumberUtil.floatCompare(A*p.x + B*p.y + C, 0f); 
         }
 
         public float slope() {
@@ -165,7 +165,7 @@ public class GeometryUtil {
         }
 
         public Pair<Float, Float> intersection(Line l) {
-            if(Util.floatCompare(slope(), l.slope())) return null;
+            if(NumberUtil.floatCompare(slope(), l.slope())) return null;
             float x = (-C - B*l.intercept()) / (A + B*l.slope());
             float y = eval(x);
             return new Pair<>(x, y);
@@ -183,7 +183,7 @@ public class GeometryUtil {
         }
     }
 
-    static class Parallelogram {
+    public static class Parallelogram {
         public Point[] points = new Point[4];
         public Line[] lines = new Line[4];
         private boolean CCW;
@@ -213,13 +213,15 @@ public class GeometryUtil {
             }
             boolean allInside = true;
             for(int i=0;i<4;i++) {
-                allInside = allInside && (CCW ? Util.zeroOrPos(distances[i]) : Util.zeroOrNeg(distances[i]));
+                allInside = allInside && (CCW 
+                ? NumberUtil.zeroOrPos(distances[i]) 
+                : NumberUtil.zeroOrNeg(distances[i]));
             }
             return allInside;
         }
     }
     
-    record Rect(int x, int y, int width, int height) {
+    public record Rect(int x, int y, int width, int height) {
         public static Rect calculateRect(List<Point> points) {
             //need to optimise?
             int maxX = points.stream().mapToInt(Point::x).max().orElse(0);
@@ -236,7 +238,7 @@ public class GeometryUtil {
         }
     }
     
-    enum Symmetry {
+    public enum Symmetry {
         IDENTITY,
         ROT_90,
         ROT_180,

@@ -1,9 +1,9 @@
 package src;
 import java.awt.image.BufferedImage;
 
-import src.Util.*;
-import src.GeometryUtil.*;
-import src.GeometryUtil.Point;
+import src.util.GeometryUtil.*;
+import src.util.GeometryUtil.Point;
+import src.datastructs.*;
 
 import java.awt.*;
 
