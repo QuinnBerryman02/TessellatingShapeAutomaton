@@ -4,48 +4,86 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BinaryOperator;
 
 import src.datastructs.*;
 
 public class Grouping {
-    static class PermutationGroup {
-        List<Permutation> permutations = new ArrayList<>();
-        Map<Permutation, String> labelMap = new HashMap<>(); 
-        private Permutation identity = null;
-        private int order;
+    public static Dihedral4 D4 = new Dihedral4();
 
-        //the first permutation is assumed to be the identity
-        public PermutationGroup(int... permutations) {
-            order = permutations.length;
-            for (int p : permutations) {
-                this.permutations.add(new Permutation(p));
-            }
-            if(order != 0) this.identity = this.permutations.get(0);
-            
+    public static class Dihedral4 extends Group<Permutation> {
+        public Dihedral4() {
+            super(List.of(1234,2341,3412,4123,2143,4321,3214,1432)
+            .stream().map(Permutation::new).toList(), Permutation.OP);
+            setLabels("ID","90","18","27","FX","FY","TR","TL");
         }
 
-        public PermutationGroup(List<Permutation> permutations) {
-            order = permutations.size();
-            this.permutations = permutations;
-            if(order != 0) this.identity = this.permutations.get(0);
+        public Permutation apply(Permutation p1, Permutation p2) {
+            return p1.multiply(p2);
+        }
+
+        public Permutation unapply(Permutation p1, Permutation p2) {
+            return p1.multiply(getInverse(p2));
+        }
+        
+        public String getLabel(Permutation p) {
+            return labelMap.get(p);
+        }
+    }
+
+    public static class Group<E> {
+        protected List<E> elements = new ArrayList<>();;
+        protected BinaryOperator<E> operator;
+        protected Map<E, String> labelMap = new HashMap<>();
+        protected Map<E, E> inverseMap = new HashMap<>();
+        protected E identity = null;
+        protected int order;
+
+        public Group(List<E> elements, BinaryOperator<E> operator) {
+            order = elements.size();
+            this.elements = elements;
+            this.operator = operator;
+            if(order != 0) this.identity = this.elements.get(0);
+            findAllInverses();
+        }
+
+        public void findAllInverses() {
+            elements.stream().forEach(e1 -> {
+                elements.stream().forEach(e2 -> {
+                    if(operator.apply(e1, e2).equals(identity)
+                    && operator.apply(e2, e1).equals(identity)) {
+                        inverseMap.put(e1, e2);
+                    }
+                });
+                inverseMap.putIfAbsent(e1, null);
+            });
         }
 
         public void setLabels(String... labels) {
             int i=0;
             for (String string : labels) {
-                labelMap.put(permutations.get(i++), string);
+                labelMap.put(elements.get(i++), string);
             }
+        }
+
+        //not checking for association
+        public boolean isValidGroup() {
+            return hasInverses() && validIdentity() && closed();
+        }
+
+        public boolean hasInverses() {
+            return inverseMap.containsValue(null);
         }
 
         public boolean validIdentity() {
             if(identity == null) return false;
-            return permutations.stream().allMatch(p -> p.multiply(identity).equals(p));
+            return elements.stream().allMatch(e -> operator.apply(e, identity).equals(e));
         }
 
         public boolean closed() {
-            for(var p1 : permutations) {
-                for(var p2 : permutations) {
-                    if(!permutations.contains(p1.multiply(p2))) return false;
+            for(var e1 : elements) {
+                for(var e2 : elements) {
+                    if(!elements.contains(operator.apply(e1, e2))) return false;
                 }
             }
             return true;
@@ -55,31 +93,31 @@ public class Grouping {
             return order;
         }
 
-        public Permutation getIdentity() {
+        public E getIdentity() {
             return identity;
         }
 
-        public Matrix<Permutation> generateCayleyTable() {
-            Matrix<Permutation> mat = new Matrix<Permutation>(getOrder(), getOrder(), Permutation.class);
+        public Matrix<E> generateCayleyTable() {
+            Matrix<E> mat = new Matrix<>(getOrder(), getOrder(), identity.getClass());
             mat.setorator((i, j) -> {
-                // System.out.println(permutations.get(i) + " x " + permutations.get(j) + " = " + permutations.get(j).multiply(permutations.get(i)));
-                return permutations.get(j).multiply(permutations.get(i));
+                //System.out.println(elements.get(i) + " x " + elements.get(j) + " = " + operator.apply(elements.get(j), elements.get(i)));
+                return operator.apply(elements.get(j), elements.get(i));
             });
-            mat.setStringMap(p -> labelMap.getOrDefault(p, "??"));
+            mat.setStringMap(e -> labelMap.getOrDefault(e, "??"));
             return mat;
         }
 
-        public List<PermutationGroup> findProperSubGroups() {
-            List<PermutationGroup> subGroups = new ArrayList<>();
+        public List<Group<E>> findProperSubGroups() {
+            List<Group<E>> subGroups = new ArrayList<>();
             List<Integer> potentialOrders = NumberUtil.divisors(order); //by lagranges theorem
             potentialOrders.remove((Integer)1);             //remove the trivial group
             potentialOrders.remove((Integer)order);         //remove the original group
             for (int potentialOrder : potentialOrders) {
                 int elementsToChoose = potentialOrder-1;    //remove identity, has to be in it
-                List<List<Permutation>> potentialPermutationLists = Util.kcombinations(Util.cdr(permutations), elementsToChoose);
-                potentialPermutationLists.forEach(l -> l.add(identity));
-                for (List<Permutation> permList : potentialPermutationLists) {
-                    PermutationGroup subgroup = new PermutationGroup(permList);
+                List<List<E>> potentialElementLists = Util.kcombinations(Util.cdr(elements), elementsToChoose);
+                potentialElementLists.forEach(l -> l.add(identity));
+                for (List<E> elementList : potentialElementLists) {
+                    Group<E> subgroup = new Group<>(elementList, operator);
                     subgroup.setLabelMap(labelMap);
                     if(subgroup.closed()) subGroups.add(subgroup);
                 }
@@ -87,24 +125,31 @@ public class Grouping {
             return subGroups;
         }
 
-        @Override
-        public String toString() {
-            return permutations.stream().map(p -> labelMap.get(p)).toList().toString();
+        public E getInverse(E element) {
+            return inverseMap.get(element);
         }
 
-        public void setLabelMap(Map<Permutation, String> labelMap) {
-            labelMap.forEach((p,l) -> {
-                if(permutations.contains(p)) this.labelMap.put(p, l);
+        @Override
+        public String toString() {
+            return elements.stream().map(labelMap::get).toList().toString();
+        }
+
+        public void setLabelMap(Map<E, String> labelMap) {
+            labelMap.forEach((e,l) -> {
+                if(elements.contains(e)) this.labelMap.put(e, l);
             });
         }
     }
 
-    static class Permutation {
+    public static class Permutation {
+        public final static BinaryOperator<Permutation> OP = (a,b) -> a.multiply(b);
         private short n;
         private List<Cycle> cycleDecomposition = new ArrayList<>();
+        private int code;
 
-        public Permutation(int permutation) {
-            short[] changedIndices = NumberUtil.intToShortArray(permutation);
+        public Permutation(int permCode) {
+            this.code = permCode;
+            short[] changedIndices = NumberUtil.intToShortArray(permCode);
             n = (short)changedIndices.length;
             for(short i=1;i<=n;i++) {
                 short newI = changedIndices[i-1];
@@ -139,6 +184,10 @@ public class Grouping {
             return new Permutation(NumberUtil.shortArrayToInt(map));
         }
 
+        public int getCode() {
+            return code;
+        }
+
         @Override
         public String toString() {
             if(cycleDecomposition.isEmpty()) return "ID";
@@ -161,7 +210,7 @@ public class Grouping {
         }
     }
 
-    static class Cycle {
+    public static class Cycle {
         private Map<Short, Short> map = new HashMap<>();
         private short n;
         private short first;
@@ -214,12 +263,7 @@ public class Grouping {
     }
 
     public static void main(String[] args) {
-        PermutationGroup dihedral4 = new PermutationGroup(1234,2341,3412,4123,2143,4321,3214,1432);
-        dihedral4.setLabels("ID","90","18","27","FX","FY","TR","TL");
-        dihedral4.generateCayleyTable().print();
-        dihedral4.findProperSubGroups().forEach(sg -> {
-            System.out.println();
-            sg.generateCayleyTable().print();
-        });
+       D4.generateCayleyTable().print();
+       D4.findProperSubGroups().forEach(sg -> sg.generateCayleyTable().print());
     }
 }

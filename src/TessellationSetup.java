@@ -20,7 +20,7 @@ public class TessellationSetup {
     private int W;
     private int H;
     private Map<Integer, DefShape> defShapes = new HashMap<>();
-    private Set<Symmetry> favouredSymetries = new HashSet<>(List.of(Symmetry.IDENTITY));
+    private Set<Transformation> favouredSymetries = new HashSet<>(List.of(Transformation.IDENTITY));
     private Point center;
     private Color[] colorCodes = {Color.black, Color.cyan, Color.pink, Color.green, Color.yellow, Color.red,  Color.magenta, Color.orange, Color.lightGray, Color.darkGray};
 
@@ -37,13 +37,13 @@ public class TessellationSetup {
 
         center = new Point(maxDim, maxDim).add(shape.getCenter());
         DefShape.NUMBER_OF_SHAPES = 0;
-        addShape(Symmetry.IDENTITY, center);
+        addShape(Transformation.IDENTITY, center);
     }
 
     @SafeVarargs
-    public TessellationSetup(Shape shape, Pair<Symmetry,Point>... relativeRules) {
+    public TessellationSetup(Shape shape, Pair<Transformation,Point>... relativeRules) {
         this(shape);
-        for (Pair<Symmetry,Point> rule : relativeRules) {
+        for (Pair<Transformation,Point> rule : relativeRules) {
             addShape(rule.a, rule.b.add(center));
         }
         setup();
@@ -53,12 +53,12 @@ public class TessellationSetup {
         mat.setorator((i,j) -> 0);
         defShapes.clear();
         favouredSymetries.clear();
-        favouredSymetries.add(Symmetry.IDENTITY);
+        favouredSymetries.add(Transformation.IDENTITY);
         DefShape.NUMBER_OF_SHAPES = 0;
-        addShape(Symmetry.IDENTITY, center);
+        addShape(Transformation.IDENTITY, center);
     }
 
-    public boolean addShape(Symmetry transformation, Point center) {
+    public boolean addShape(Transformation transformation, Point center) {
         DefShape defShape = new DefShape(transformation, center);
         Point transformedShapeCenter = shape.getCenterTransformed(transformation);
         Point bitmapTL = center.sub(transformedShapeCenter);
@@ -126,7 +126,7 @@ public class TessellationSetup {
         }).count();
     }
 
-    public List<AbsoluteRule> getAllAbsoluteRules(Symmetry planeSymmetry) {
+    public List<AbsoluteRule> getAllAbsoluteRules(Transformation planeSymmetry) {
         return defShapes.values().stream()
         .flatMap(sh -> sh.getPotentialAbsoluteRules(planeSymmetry).stream()).toList();
     }
@@ -145,14 +145,14 @@ public class TessellationSetup {
     }
 
     public void setup() {
-        Map<Symmetry,Matrix<Integer>> planeTransformations = new HashMap<>();
-        planeTransformations.put(Symmetry.IDENTITY, mat);
+        Map<Transformation,Matrix<Integer>> planeTransformations = new HashMap<>();
+        planeTransformations.put(Transformation.IDENTITY, mat);
         List<RelativeRule> relativeRules = getAllRelativeRules();
         if(DEBUG) System.out.println("relative centers : " + relativeRules);
         for(DefShape currentShape : getBorderShapes()) {
             if(DEBUG) System.out.println("checking  " + currentShape.code);  
-            for (Symmetry shapeSymmetry : currentShape.getPotentialSymmetries()) {
-                Symmetry planeSymmetry = shapeSymmetry.inversion();
+            for (Transformation shapeSymmetry : currentShape.getPotentialSymmetries()) {
+                Transformation planeSymmetry = shapeSymmetry.inversion();
                 Matrix<Integer> plane = planeTransformations.computeIfAbsent(planeSymmetry, mat::transform);
                 Point currentCenter = currentShape.getAbsoluteCenter(shapeSymmetry, planeSymmetry);
                 if(DEBUG) System.out.println("shape sym : " + shapeSymmetry + " plane sym : " + planeSymmetry);
@@ -212,7 +212,7 @@ public class TessellationSetup {
         if(DEBUG) System.out.println("REMOVING INCORRECT SHAPE SYMMETRIES");
         List<RelativeRule> newIncorrectRules = new ArrayList<>();
         for (DefShape shape : getBorderShapes()) {
-            for (Symmetry symmetry : List.copyOf(shape.validNeigbourRules.keySet())) {
+            for (Transformation symmetry : List.copyOf(shape.validNeigbourRules.keySet())) {
                 shape.validNeigbourRules.get(symmetry).removeIf(knownIncorrectRules::contains);
                 boolean valid = shape.followsRules(symmetry);
                 RelativeRule rule = shape.getRelativeRule(symmetry);
@@ -258,7 +258,7 @@ public class TessellationSetup {
         System.out.println("border tiles occupied : " + areAllBorderTilesOccupied()); 
         System.out.println("border shapes following rules : " + doBorderShapesFollowRules());
         System.out.println("Relative Rules Map");
-        List<RelativeRule> trueRules = getMainShape().validNeigbourRules.get(Symmetry.IDENTITY);
+        List<RelativeRule> trueRules = getMainShape().validNeigbourRules.get(Transformation.IDENTITY);
         System.out.println(trueRules);
         boolean allEqual = true;
         for (DefShape shape : getBorderShapes()) {
@@ -280,16 +280,16 @@ public class TessellationSetup {
 
     public Tessellation toTessellation() {
         if(!isValidTessellation()) return null;
-        return new Tessellation(shape, getMainShape().validNeigbourRules.get(Symmetry.IDENTITY));
+        return new Tessellation(shape, getMainShape().validNeigbourRules.get(Transformation.IDENTITY));
     }
 
     public static void main(String[] args) {
         TessellationSetup DOMINO_5 = new TessellationSetup(Shape.DOMINO,
-        new Pair<>(Symmetry.IDENTITY, new Point(0, 1)),
-        new Pair<>(Symmetry.ROT_90, new Point(-1, 0)),
-        new Pair<>(Symmetry.ROT_90, new Point(2, 0)),
-        new Pair<>(Symmetry.ROT_90, new Point(0, -2)),
-        new Pair<>(Symmetry.ROT_90, new Point(1, -2)));
+        new Pair<>(Transformation.IDENTITY, new Point(0, 1)),
+        new Pair<>(Transformation.ROT_90, new Point(-1, 0)),
+        new Pair<>(Transformation.ROT_90, new Point(2, 0)),
+        new Pair<>(Transformation.ROT_90, new Point(0, -2)),
+        new Pair<>(Transformation.ROT_90, new Point(1, -2)));
         System.out.println("im in oregon but im still driving");
         DOMINO_5.report();
         System.out.println("im in oregon but im still driving");
@@ -315,17 +315,17 @@ public class TessellationSetup {
         public int code;
         public Point initialRelCenter;
         public Point initialAbsCenter;
-        public Symmetry initialSymmetry;
+        public Transformation initialSymmetry;
     
-        public List<Symmetry> potentialSymmetries;
-        public Map<Symmetry, List<RelativeRule>> validNeigbourRules = new HashMap<>();
+        public List<Transformation> potentialSymmetries;
+        public Map<Transformation, List<RelativeRule>> validNeigbourRules = new HashMap<>();
     
         public boolean certain = false;
-        public Symmetry trueSymmetry;
+        public Transformation trueSymmetry;
         public RelativeRule trueRelRule;
         public AbsoluteRule trueAbsRule;
         
-        public DefShape(Symmetry chosenSymmetry, Point chosenCenter) {
+        public DefShape(Transformation chosenSymmetry, Point chosenCenter) {
             this.code = ++NUMBER_OF_SHAPES;
             this.initialAbsCenter = chosenCenter;
             this.initialRelCenter = initialAbsCenter.sub(center);
@@ -333,32 +333,32 @@ public class TessellationSetup {
             
             this.potentialSymmetries = shape.findSymmetriesThatLookTheSame(initialSymmetry);
             if(code == 1) {
-                potentialSymmetries = new ArrayList<>(List.of(Symmetry.IDENTITY));
-                setTrueSymmetry(Symmetry.IDENTITY);
+                potentialSymmetries = new ArrayList<>(List.of(Transformation.IDENTITY));
+                setTrueSymmetry(Transformation.IDENTITY);
             }
             potentialSymmetries.forEach(sym -> validNeigbourRules.put(sym, new ArrayList<>()));
         }
         //calculates the shapes center point, in its default plane transform
-        public Point getAbsoluteCenter(Symmetry shapeSymmetry) {
+        public Point getAbsoluteCenter(Transformation shapeSymmetry) {
             Point oldCenterOffset = shape.getCenterTransformed(initialSymmetry);
             Point newSymCenterOffset = shape.getCenterTransformed(shapeSymmetry);
             Point symCenter = initialAbsCenter.sub(oldCenterOffset).add(newSymCenterOffset);
             return symCenter;
         }
         //calculates the shapes center point, in any plane transform
-        public Point getAbsoluteCenter(Symmetry shapeSymmetry, Symmetry planeSymmetry) {
+        public Point getAbsoluteCenter(Transformation shapeSymmetry, Transformation planeSymmetry) {
             return mat.pointAfterTransformation(getAbsoluteCenter(shapeSymmetry), planeSymmetry);
         }
         
-        public AbsoluteRule getAbsoluteRule(Symmetry shapeSymmetry, Symmetry planeSymmetry) {
+        public AbsoluteRule getAbsoluteRule(Transformation shapeSymmetry, Transformation planeSymmetry) {
             return new AbsoluteRule(code, shapeSymmetry.apply(planeSymmetry), getAbsoluteCenter(shapeSymmetry, planeSymmetry));
         }
     
-        public RelativeRule getRelativeRule(Symmetry shapeSymmetry) {
+        public RelativeRule getRelativeRule(Transformation shapeSymmetry) {
             return new RelativeRule(code, shapeSymmetry, getAbsoluteCenter(shapeSymmetry).sub(center));
         }
     
-        public List<Symmetry> getPotentialSymmetries() {
+        public List<Transformation> getPotentialSymmetries() {
             return potentialSymmetries;
         }
     
@@ -366,14 +366,14 @@ public class TessellationSetup {
             return potentialSymmetries.stream().anyMatch(sym -> followsRules(sym));
         }
     
-        public boolean followsRules(Symmetry symmetry) {
+        public boolean followsRules(Transformation symmetry) {
             Boolean[] neighboursPresent = new Boolean[NUMBER_OF_SHAPES];
             Arrays.fill(neighboursPresent, false);
             neighboursPresent[code-1] = true;
             validNeigbourRules.get(symmetry).forEach(r -> neighboursPresent[r.declaringCode-1] = true);
             return Arrays.stream(neighboursPresent).allMatch(b -> b == true);
         }
-        public List<AbsoluteRule> getPotentialAbsoluteRules(Symmetry planeSymmetry) {
+        public List<AbsoluteRule> getPotentialAbsoluteRules(Transformation planeSymmetry) {
             return getPotentialSymmetries().stream()
             .map(sym -> getAbsoluteRule(sym, planeSymmetry)).toList();
         }
@@ -382,7 +382,7 @@ public class TessellationSetup {
             .map(this::getRelativeRule).toList();
         }
     
-        public void discountSymmetry(Symmetry sym) {
+        public void discountSymmetry(Transformation sym) {
             validNeigbourRules.remove(sym);
             potentialSymmetries.remove(sym);
             if(potentialSymmetries.size() == 1) {
@@ -391,19 +391,19 @@ public class TessellationSetup {
         }
     
         public RelativeRule discountUnfavourableSymmetry() {
-            Symmetry discountable = potentialSymmetries.stream()
+            Transformation discountable = potentialSymmetries.stream()
             .filter(sym -> !favouredSymetries.contains(sym))
             .findFirst().orElse(potentialSymmetries.get(0));
             discountSymmetry(discountable);
             return getRelativeRule(discountable);
         }
     
-        public void setTrueSymmetry(Symmetry sym) {
+        public void setTrueSymmetry(Transformation sym) {
             favouredSymetries.add(sym);
             certain = true;
             trueSymmetry = sym;
             trueRelRule = getRelativeRule(sym);
-            trueAbsRule = getAbsoluteRule(sym, Symmetry.IDENTITY);
+            trueAbsRule = getAbsoluteRule(sym, Transformation.IDENTITY);
         }
     
         @Override
@@ -424,10 +424,10 @@ public class TessellationSetup {
 }
 
 abstract class PositionRule {
-    public Symmetry symmetry;
+    public Transformation symmetry;
     public Point point;
 
-    public PositionRule(Symmetry symmetry, Point point) {
+    public PositionRule(Transformation symmetry, Point point) {
         this.symmetry = symmetry;
         this.point = point;
     }
@@ -450,7 +450,7 @@ abstract class PositionRule {
 class AbsoluteRule extends PositionRule {
     public int codeAtPlace;
 
-    public AbsoluteRule(int codeAtPlace, Symmetry symmetry, Point point) {
+    public AbsoluteRule(int codeAtPlace, Transformation symmetry, Point point) {
         super(symmetry, point);
         this.codeAtPlace = codeAtPlace;
     }
@@ -465,7 +465,7 @@ class RelativeRule extends PositionRule {
     public int declaringCode;
     public boolean incorrect = false;
 
-    public RelativeRule(int declaringCode, Symmetry symmetry, Point point) {
+    public RelativeRule(int declaringCode, Transformation symmetry, Point point) {
         super(symmetry, point);
         this.declaringCode = declaringCode;
     }
@@ -485,7 +485,7 @@ class RelativeRule extends PositionRule {
         return super.equals(obj) && rule.declaringCode == declaringCode;
     }
 
-    public RelativeRule transform(Symmetry symmetry) {
+    public RelativeRule transform(Transformation symmetry) {
         return new RelativeRule(declaringCode, this.symmetry.apply(symmetry), point.transform(symmetry));
     }
 }

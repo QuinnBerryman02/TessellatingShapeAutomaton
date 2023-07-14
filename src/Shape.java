@@ -69,18 +69,18 @@ public class Shape {
         .filter(p -> !points.contains(p)).collect(Collectors.toList());
     }
 
-    public List<Symmetry> findSymmetriesThatLookTheSame(Symmetry symmetry) {
+    public List<Transformation> findSymmetriesThatLookTheSame(Transformation symmetry) {
         Matrix<Boolean> goal = bitmap.transform(symmetry);
-        return new ArrayList<>(Arrays.stream(Symmetry.values())
+        return new ArrayList<>(Arrays.stream(Transformation.values())
         .filter(sym -> bitmap.transform(sym).equals(goal)).toList());
     }
 
-    public List<Symmetry> findSymmetriesThatAlign(Matrix<Boolean> map) {
-        return Arrays.stream(Symmetry.values())
+    public List<Transformation> findSymmetriesThatAlign(Matrix<Boolean> map) {
+        return Arrays.stream(Transformation.values())
         .filter(sym -> map.transform(sym).equals(bitmap)).toList();
     }
 
-    public Point getCenterTransformed(Symmetry transformation) {
+    public Point getCenterTransformed(Transformation transformation) {
         return bitmap.pointAfterTransformation(center, transformation);
     }
 

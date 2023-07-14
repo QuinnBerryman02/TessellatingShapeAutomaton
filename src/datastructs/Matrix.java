@@ -105,7 +105,7 @@ public class Matrix<E> {
         return yflip().rotate90CW();
     }
 
-    public Matrix<E> transform(Symmetry transformation) {
+    public Matrix<E> transform(Transformation transformation) {
         return switch(transformation) {
             case IDENTITY -> this;
             case ROT_90 -> rotate90CW();
@@ -173,7 +173,7 @@ public class Matrix<E> {
         return found;
     }
 
-    public Point pointAfterTransformation(Point p, Symmetry transformation) {
+    public Point pointAfterTransformation(Point p, Transformation transformation) {
         return switch(transformation) {
             case IDENTITY -> new Point( p.x(),                p.y());
             case ROT_90 -> new Point(   height - p.y()- 1,    p.x());

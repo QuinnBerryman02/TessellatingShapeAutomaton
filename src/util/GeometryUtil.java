@@ -128,7 +128,7 @@ public class GeometryUtil {
             return "[" + x + "," + y + "]";
         }
 
-        public Point transform(Symmetry symmetry) {
+        public Point transform(Transformation symmetry) {
             return switch(symmetry) {
                 case IDENTITY -> new Point(x, y);
                 case ROT_90 -> new Point( -y, x);
@@ -238,7 +238,7 @@ public class GeometryUtil {
         }
     }
     
-    public enum Symmetry {
+    public enum Transformation {
         IDENTITY,
         ROT_90,
         ROT_180,
@@ -248,7 +248,7 @@ public class GeometryUtil {
         DIAG_TR,
         DIAG_TL;
     
-        private static Symmetry[][] applicationTable = {
+        private static Transformation[][] applicationTable = {
             {IDENTITY,  ROT_90,     ROT_180,    ROT_270,    FLIP_X,     FLIP_Y,     DIAG_TR,    DIAG_TL},
             {ROT_90,    ROT_180,    ROT_270,    IDENTITY,   DIAG_TL,    DIAG_TR,    FLIP_X,     FLIP_Y},
             {ROT_180,   ROT_270,    IDENTITY,   ROT_90,     FLIP_Y,     FLIP_X,     DIAG_TL,    DIAG_TR},
@@ -259,15 +259,15 @@ public class GeometryUtil {
             {DIAG_TL,   FLIP_X,     DIAG_TR,    FLIP_Y,     ROT_270,    ROT_90,     ROT_180,    IDENTITY},
         };
         //column by row
-        public Symmetry apply(Symmetry transformation) {
+        public Transformation apply(Transformation transformation) {
             return applicationTable[transformation.ordinal()][this.ordinal()];
         }
     
-        public Symmetry unapply(Symmetry transformation) {
+        public Transformation unapply(Transformation transformation) {
             return applicationTable[this.ordinal()][transformation.inversion().ordinal()];
         }
 
-        public Symmetry inversion() {
+        public Transformation inversion() {
             if(this.equals(ROT_90)) return ROT_270;
             if(this.equals(ROT_270)) return ROT_90;
             return this;
