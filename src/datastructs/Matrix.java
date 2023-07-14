@@ -6,6 +6,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import src.util.GeometryUtil.*;
+import src.util.Grouping.Permutation;
+import static src.util.Grouping.D4;
 
 import java.lang.reflect.Array;
 import java.awt.Color;
@@ -105,16 +107,17 @@ public class Matrix<E> {
         return yflip().rotate90CW();
     }
 
-    public Matrix<E> transform(Transformation transformation) {
-        return switch(transformation) {
-            case IDENTITY -> this;
-            case ROT_90 -> rotate90CW();
-            case ROT_180 -> rotate180();
-            case ROT_270 -> rotate90CCW();
-            case FLIP_X -> xflip();
-            case FLIP_Y -> yflip();
-            case DIAG_TR -> flipDiagTR();
-            case DIAG_TL -> flipDiagTL();
+    public Matrix<E> transform(Permutation permutation) {
+        return switch(D4.getLabel(permutation)) {
+            default -> this;
+            case "ID" -> this;
+            case "90" -> rotate90CW();
+            case "18" -> rotate180();
+            case "27" -> rotate90CCW();
+            case "FX" -> xflip();
+            case "FY" -> yflip();
+            case "TR" -> flipDiagTR();
+            case "TL" -> flipDiagTL();
         };
     }
 
@@ -173,16 +176,17 @@ public class Matrix<E> {
         return found;
     }
 
-    public Point pointAfterTransformation(Point p, Transformation transformation) {
-        return switch(transformation) {
-            case IDENTITY -> new Point( p.x(),                p.y());
-            case ROT_90 -> new Point(   height - p.y()- 1,    p.x());
-            case ROT_180 -> new Point(  width - p.x()- 1,     height - p.y()- 1);
-            case ROT_270 -> new Point(  p.y(),                width - p.x()- 1);
-            case FLIP_X -> new Point(   width - p.x()- 1,     p.y());
-            case FLIP_Y -> new Point(   p.x(),                height - p.y()- 1);
-            case DIAG_TR -> new Point(  height - p.y()- 1,    width - p.x()- 1);
-            case DIAG_TL -> new Point(  p.y(),                p.x());
+    public Point pointAfterPermutation(Point p, Permutation permutation) {
+        return switch(D4.getLabel(permutation)) {
+            default -> null;
+            case "ID" -> new Point(p.x(),                p.y());
+            case "90" -> new Point(height - p.y()- 1,    p.x());
+            case "18" -> new Point(width - p.x()- 1,     height - p.y()- 1);
+            case "27" -> new Point(p.y(),                width - p.x()- 1);
+            case "FX" -> new Point(width - p.x()- 1,     p.y());
+            case "FY" -> new Point(p.x(),                height - p.y()- 1);
+            case "TR" -> new Point(height - p.y()- 1,    width - p.x()- 1);
+            case "TL" -> new Point(p.y(),                p.x());
         };
     }
 

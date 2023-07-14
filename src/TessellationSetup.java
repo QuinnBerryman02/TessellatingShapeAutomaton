@@ -12,6 +12,8 @@ import java.awt.Color;
 import src.util.GeometryUtil.*;
 import src.util.Util.*;
 import src.datastructs.*;
+import static src.util.Grouping.D4;
+import src.util.Grouping.Permutation;
 
 public class TessellationSetup {
     private static final boolean DEBUG = false;
@@ -20,7 +22,7 @@ public class TessellationSetup {
     private int W;
     private int H;
     private Map<Integer, DefShape> defShapes = new HashMap<>();
-    private Set<Transformation> favouredSymetries = new HashSet<>(List.of(Transformation.IDENTITY));
+    private Set<Permutation> favouredPermutations = new HashSet<>(List.of(D4.ID));
     private Point center;
     private Color[] colorCodes = {Color.black, Color.cyan, Color.pink, Color.green, Color.yellow, Color.red,  Color.magenta, Color.orange, Color.lightGray, Color.darkGray};
 
@@ -37,13 +39,13 @@ public class TessellationSetup {
 
         center = new Point(maxDim, maxDim).add(shape.getCenter());
         DefShape.NUMBER_OF_SHAPES = 0;
-        addShape(Transformation.IDENTITY, center);
+        addShape(D4.ID, center);
     }
 
     @SafeVarargs
-    public TessellationSetup(Shape shape, Pair<Transformation,Point>... relativeRules) {
+    public TessellationSetup(Shape shape, Pair<Permutation,Point>... relativeRules) {
         this(shape);
-        for (Pair<Transformation,Point> rule : relativeRules) {
+        for (Pair<Permutation,Point> rule : relativeRules) {
             addShape(rule.a, rule.b.add(center));
         }
         setup();
@@ -52,17 +54,17 @@ public class TessellationSetup {
     public void reset() {
         mat.setorator((i,j) -> 0);
         defShapes.clear();
-        favouredSymetries.clear();
-        favouredSymetries.add(Transformation.IDENTITY);
+        favouredPermutations.clear();
+        favouredPermutations.add(D4.ID);
         DefShape.NUMBER_OF_SHAPES = 0;
-        addShape(Transformation.IDENTITY, center);
+        addShape(D4.ID, center);
     }
 
-    public boolean addShape(Transformation transformation, Point center) {
-        DefShape defShape = new DefShape(transformation, center);
-        Point transformedShapeCenter = shape.getCenterTransformed(transformation);
+    public boolean addShape(Permutation Permutation, Point center) {
+        DefShape defShape = new DefShape(Permutation, center);
+        Point transformedShapeCenter = shape.getCenterTransformed(Permutation);
         Point bitmapTL = center.sub(transformedShapeCenter);
-        boolean canPlace = placeBitmap(bitmapTL, shape.getBitmap().transform(transformation), defShape.code);
+        boolean canPlace = placeBitmap(bitmapTL, shape.getBitmap().transform(Permutation), defShape.code);
         if(canPlace) {
             defShapes.put(defShape.code, defShape);
         } else {
@@ -126,9 +128,9 @@ public class TessellationSetup {
         }).count();
     }
 
-    public List<AbsoluteRule> getAllAbsoluteRules(Transformation planeSymmetry) {
+    public List<AbsoluteRule> getAllAbsoluteRules(Permutation planePermutation) {
         return defShapes.values().stream()
-        .flatMap(sh -> sh.getPotentialAbsoluteRules(planeSymmetry).stream()).toList();
+        .flatMap(sh -> sh.getPotentialAbsoluteRules(planePermutation).stream()).toList();
     }
 
     public List<RelativeRule> getAllRelativeRules() {
@@ -145,21 +147,21 @@ public class TessellationSetup {
     }
 
     public void setup() {
-        Map<Transformation,Matrix<Integer>> planeTransformations = new HashMap<>();
-        planeTransformations.put(Transformation.IDENTITY, mat);
+        Map<Permutation,Matrix<Integer>> planePermutations = new HashMap<>();
+        planePermutations.put(D4.ID, mat);
         List<RelativeRule> relativeRules = getAllRelativeRules();
         if(DEBUG) System.out.println("relative centers : " + relativeRules);
         for(DefShape currentShape : getBorderShapes()) {
             if(DEBUG) System.out.println("checking  " + currentShape.code);  
-            for (Transformation shapeSymmetry : currentShape.getPotentialSymmetries()) {
-                Transformation planeSymmetry = shapeSymmetry.inversion();
-                Matrix<Integer> plane = planeTransformations.computeIfAbsent(planeSymmetry, mat::transform);
-                Point currentCenter = currentShape.getAbsoluteCenter(shapeSymmetry, planeSymmetry);
-                if(DEBUG) System.out.println("shape sym : " + shapeSymmetry + " plane sym : " + planeSymmetry);
+            for (Permutation shapePerm : currentShape.getPotentialSymmetries()) {
+                Permutation planePerm = D4.getInverse(shapePerm);
+                Matrix<Integer> plane = planePermutations.computeIfAbsent(planePerm, mat::transform);
+                Point currentCenter = currentShape.getAbsoluteCenter(shapePerm, planePerm);
+                if(DEBUG) System.out.println("shape perm : " + shapePerm + " plane perm : " + planePerm);
                 if(DEBUG) plane.print();
                 if(DEBUG) System.out.println("abs center : " + currentCenter);
 
-                List<AbsoluteRule> absoluteRules = getAllAbsoluteRules(planeSymmetry);
+                List<AbsoluteRule> absoluteRules = getAllAbsoluteRules(planePerm);
                 if(DEBUG) System.out.println("abs : " + absoluteRules);
                 List<Integer> failedCodes = new ArrayList<>(); //not sure if this is 100% legit, but i think it holds
                 for (RelativeRule rule : relativeRules) {
@@ -170,26 +172,26 @@ public class TessellationSetup {
                         continue;
                     }
                     if(!plane.toRect().inside(testCenter)) {
-                        currentShape.validNeigbourRules.get(shapeSymmetry).add(rule);
+                        currentShape.validNeigbourRules.get(shapePerm).add(rule);
                         if(DEBUG) System.out.println(trueRule + " OOB => safe");
                         continue;
                     }
                     int code = plane.get(testCenter.y(), testCenter.x());
                     if(code == 0) {
-                        currentShape.validNeigbourRules.get(shapeSymmetry).add(rule);
+                        currentShape.validNeigbourRules.get(shapePerm).add(rule);
                         if(DEBUG) System.out.println(trueRule + " EMPTY TILE => safe");
                         continue;
                     }
                     AbsoluteRule matchingCenter = findMatchingCenter(trueRule, absoluteRules);
                     if(matchingCenter != null) {
-                        currentShape.validNeigbourRules.get(shapeSymmetry).add(rule);
+                        currentShape.validNeigbourRules.get(shapePerm).add(rule);
                         if(DEBUG) System.out.println(trueRule + " DID MATCH => safe");
                         continue;
                     }
                     if(DEBUG) System.out.println(trueRule + " NO MATCH => failed");
                     //failedCodes.add(rule.declaringCode);
                 }   
-                if(DEBUG) System.out.println("shape " + currentShape.code + " in symmetry " + shapeSymmetry + " was " + (currentShape.followsRules(shapeSymmetry) ? "valid" : "invalid"));   
+                if(DEBUG) System.out.println("shape " + currentShape.code + " in permutation " + shapePerm + " was " + (currentShape.followsRules(shapePerm) ? "valid" : "invalid"));   
             }
         }
         for (DefShape shape : getBorderShapes()) {
@@ -212,13 +214,13 @@ public class TessellationSetup {
         if(DEBUG) System.out.println("REMOVING INCORRECT SHAPE SYMMETRIES");
         List<RelativeRule> newIncorrectRules = new ArrayList<>();
         for (DefShape shape : getBorderShapes()) {
-            for (Transformation symmetry : List.copyOf(shape.validNeigbourRules.keySet())) {
-                shape.validNeigbourRules.get(symmetry).removeIf(knownIncorrectRules::contains);
-                boolean valid = shape.followsRules(symmetry);
-                RelativeRule rule = shape.getRelativeRule(symmetry);
+            for (Permutation perm : List.copyOf(shape.validNeigbourRules.keySet())) {
+                shape.validNeigbourRules.get(perm).removeIf(knownIncorrectRules::contains);
+                boolean valid = shape.followsRules(perm);
+                RelativeRule rule = shape.getRelativeRule(perm);
                 if(!valid) {
                     newIncorrectRules.add(rule);
-                    shape.discountSymmetry(symmetry);
+                    shape.discountPermutation(perm);
                 }
                 if(DEBUG) System.out.println("shape " + rule + " is " + (valid ? "valid" : "invalid"));
             }
@@ -239,7 +241,7 @@ public class TessellationSetup {
     public void collapsePossiblilities() {
         DefShape currentShape;
         while ((currentShape = findIndecisiveShape()) != null) {
-            RelativeRule rule = currentShape.discountUnfavourableSymmetry();
+            RelativeRule rule = currentShape.discountUnfavourablePermutation();
             if(DEBUG) System.out.println("DISCOUNTING " + rule);
             removeIncorrectRules(List.of(rule));
         }
@@ -247,7 +249,7 @@ public class TessellationSetup {
 
     public void assignFinalRelativeRulesToMain() {
         DefShape mainShape = getMainShape();
-        defShapes.values().forEach(bs -> mainShape.validNeigbourRules.get(mainShape.trueSymmetry).add(bs.trueRelRule));
+        defShapes.values().forEach(bs -> mainShape.validNeigbourRules.get(mainShape.truePermutation).add(bs.trueRelRule));
     }
 
     public void print() { mat.print(); }
@@ -258,14 +260,14 @@ public class TessellationSetup {
         System.out.println("border tiles occupied : " + areAllBorderTilesOccupied()); 
         System.out.println("border shapes following rules : " + doBorderShapesFollowRules());
         System.out.println("Relative Rules Map");
-        List<RelativeRule> trueRules = getMainShape().validNeigbourRules.get(Transformation.IDENTITY);
+        List<RelativeRule> trueRules = getMainShape().validNeigbourRules.get(D4.ID);
         System.out.println(trueRules);
         boolean allEqual = true;
         for (DefShape shape : getBorderShapes()) {
             if(DEBUG) System.out.println("Shape " + shape.code + " = " + shape.validNeigbourRules);
-            List<RelativeRule> checkRules = shape.validNeigbourRules.get(shape.trueSymmetry);
+            List<RelativeRule> checkRules = shape.validNeigbourRules.get(shape.truePermutation);
             if(checkRules == null) {
-                System.out.println("Shape " + shape.code + " didnt have a neighbour rule set for " + shape.trueSymmetry);
+                System.out.println("Shape " + shape.code + " didnt have a neighbour rule set for " + shape.truePermutation);
                 allEqual = false;
                 continue;
             }
@@ -280,30 +282,21 @@ public class TessellationSetup {
 
     public Tessellation toTessellation() {
         if(!isValidTessellation()) return null;
-        return new Tessellation(shape, getMainShape().validNeigbourRules.get(Transformation.IDENTITY));
+        return new Tessellation(shape, getMainShape().validNeigbourRules.get(D4.ID));
     }
 
     public static void main(String[] args) {
         TessellationSetup DOMINO_5 = new TessellationSetup(Shape.DOMINO,
-        new Pair<>(Transformation.IDENTITY, new Point(0, 1)),
-        new Pair<>(Transformation.ROT_90, new Point(-1, 0)),
-        new Pair<>(Transformation.ROT_90, new Point(2, 0)),
-        new Pair<>(Transformation.ROT_90, new Point(0, -2)),
-        new Pair<>(Transformation.ROT_90, new Point(1, -2)));
+        new Pair<>(D4.ID, new Point(0, 1)),
+        new Pair<>(D4.get("90"), new Point(-1, 0)),
+        new Pair<>(D4.get("90"), new Point(2, 0)),
+        new Pair<>(D4.get("90"), new Point(0, -2)),
+        new Pair<>(D4.get("90"), new Point(1, -2)));
         System.out.println("im in oregon but im still driving");
         DOMINO_5.report();
         System.out.println("im in oregon but im still driving");
         DOMINO_5.report();
         System.out.println("im in oregon but im still driving");
-        
-        // TessellationSetup DOMINO_6_ZIG_ZAG = new TessellationSetup(Shape.DOMINO,
-        // new Pair<>(Symmetry.ROT_90, new Point(-1, 0)),
-        // new Pair<>(Symmetry.ROT_90, new Point(2, -1)),
-        // new Pair<>(Symmetry.IDENTITY, new Point(-1, -1)),
-        // new Pair<>(Symmetry.IDENTITY, new Point(1, 1)),
-        // new Pair<>(Symmetry.ROT_90, new Point(1, -2)),
-        // new Pair<>(Symmetry.ROT_90, new Point(0, 1)));
-        // DOMINO_6_ZIG_ZAG.report();
 
         Tessellation t = DOMINO_5.toTessellation();
         System.out.println(t);
@@ -315,95 +308,95 @@ public class TessellationSetup {
         public int code;
         public Point initialRelCenter;
         public Point initialAbsCenter;
-        public Transformation initialSymmetry;
+        public Permutation initialPermutation;
     
-        public List<Transformation> potentialSymmetries;
-        public Map<Transformation, List<RelativeRule>> validNeigbourRules = new HashMap<>();
+        public List<Permutation> potentialSymmetries;
+        public Map<Permutation, List<RelativeRule>> validNeigbourRules = new HashMap<>();
     
         public boolean certain = false;
-        public Transformation trueSymmetry;
+        public Permutation truePermutation;
         public RelativeRule trueRelRule;
         public AbsoluteRule trueAbsRule;
         
-        public DefShape(Transformation chosenSymmetry, Point chosenCenter) {
+        public DefShape(Permutation chosenPerm, Point chosenCenter) {
             this.code = ++NUMBER_OF_SHAPES;
             this.initialAbsCenter = chosenCenter;
             this.initialRelCenter = initialAbsCenter.sub(center);
-            this.initialSymmetry = chosenSymmetry;
+            this.initialPermutation = chosenPerm;
             
-            this.potentialSymmetries = shape.findSymmetriesThatLookTheSame(initialSymmetry);
+            this.potentialSymmetries = shape.findPermutationsThatLookTheSame(initialPermutation);
             if(code == 1) {
-                potentialSymmetries = new ArrayList<>(List.of(Transformation.IDENTITY));
-                setTrueSymmetry(Transformation.IDENTITY);
+                potentialSymmetries = new ArrayList<>(List.of(D4.ID));
+                setTruePermutation(D4.ID);
             }
-            potentialSymmetries.forEach(sym -> validNeigbourRules.put(sym, new ArrayList<>()));
+            potentialSymmetries.forEach(perm -> validNeigbourRules.put(perm, new ArrayList<>()));
         }
         //calculates the shapes center point, in its default plane transform
-        public Point getAbsoluteCenter(Transformation shapeSymmetry) {
-            Point oldCenterOffset = shape.getCenterTransformed(initialSymmetry);
-            Point newSymCenterOffset = shape.getCenterTransformed(shapeSymmetry);
+        public Point getAbsoluteCenter(Permutation shapePerm) {
+            Point oldCenterOffset = shape.getCenterTransformed(initialPermutation);
+            Point newSymCenterOffset = shape.getCenterTransformed(shapePerm);
             Point symCenter = initialAbsCenter.sub(oldCenterOffset).add(newSymCenterOffset);
             return symCenter;
         }
         //calculates the shapes center point, in any plane transform
-        public Point getAbsoluteCenter(Transformation shapeSymmetry, Transformation planeSymmetry) {
-            return mat.pointAfterTransformation(getAbsoluteCenter(shapeSymmetry), planeSymmetry);
+        public Point getAbsoluteCenter(Permutation shapePerm, Permutation planePerm) {
+            return mat.pointAfterPermutation(getAbsoluteCenter(shapePerm), planePerm);
         }
         
-        public AbsoluteRule getAbsoluteRule(Transformation shapeSymmetry, Transformation planeSymmetry) {
-            return new AbsoluteRule(code, shapeSymmetry.apply(planeSymmetry), getAbsoluteCenter(shapeSymmetry, planeSymmetry));
+        public AbsoluteRule getAbsoluteRule(Permutation shapePerm, Permutation planePerm) {
+            return new AbsoluteRule(code, D4.apply(shapePerm, planePerm), getAbsoluteCenter(shapePerm, planePerm));
         }
     
-        public RelativeRule getRelativeRule(Transformation shapeSymmetry) {
-            return new RelativeRule(code, shapeSymmetry, getAbsoluteCenter(shapeSymmetry).sub(center));
+        public RelativeRule getRelativeRule(Permutation shapePerm) {
+            return new RelativeRule(code, shapePerm, getAbsoluteCenter(shapePerm).sub(center));
         }
     
-        public List<Transformation> getPotentialSymmetries() {
+        public List<Permutation> getPotentialSymmetries() {
             return potentialSymmetries;
         }
     
         public boolean followsRules() {
-            return potentialSymmetries.stream().anyMatch(sym -> followsRules(sym));
+            return potentialSymmetries.stream().anyMatch(perm -> followsRules(perm));
         }
     
-        public boolean followsRules(Transformation symmetry) {
+        public boolean followsRules(Permutation perm) {
             Boolean[] neighboursPresent = new Boolean[NUMBER_OF_SHAPES];
             Arrays.fill(neighboursPresent, false);
             neighboursPresent[code-1] = true;
-            validNeigbourRules.get(symmetry).forEach(r -> neighboursPresent[r.declaringCode-1] = true);
+            validNeigbourRules.get(perm).forEach(r -> neighboursPresent[r.declaringCode-1] = true);
             return Arrays.stream(neighboursPresent).allMatch(b -> b == true);
         }
-        public List<AbsoluteRule> getPotentialAbsoluteRules(Transformation planeSymmetry) {
+        public List<AbsoluteRule> getPotentialAbsoluteRules(Permutation planePerm) {
             return getPotentialSymmetries().stream()
-            .map(sym -> getAbsoluteRule(sym, planeSymmetry)).toList();
+            .map(perm -> getAbsoluteRule(perm, planePerm)).toList();
         }
         public List<RelativeRule> getPotentialRelativeRules() {
             return getPotentialSymmetries().stream()
             .map(this::getRelativeRule).toList();
         }
     
-        public void discountSymmetry(Transformation sym) {
-            validNeigbourRules.remove(sym);
-            potentialSymmetries.remove(sym);
+        public void discountPermutation(Permutation perm) {
+            validNeigbourRules.remove(perm);
+            potentialSymmetries.remove(perm);
             if(potentialSymmetries.size() == 1) {
-                setTrueSymmetry(potentialSymmetries.get(0));
+                setTruePermutation(potentialSymmetries.get(0));
             }
         }
     
-        public RelativeRule discountUnfavourableSymmetry() {
-            Transformation discountable = potentialSymmetries.stream()
-            .filter(sym -> !favouredSymetries.contains(sym))
+        public RelativeRule discountUnfavourablePermutation() {
+            Permutation discountable = potentialSymmetries.stream()
+            .filter(perm -> !favouredPermutations.contains(perm))
             .findFirst().orElse(potentialSymmetries.get(0));
-            discountSymmetry(discountable);
+            discountPermutation(discountable);
             return getRelativeRule(discountable);
         }
     
-        public void setTrueSymmetry(Transformation sym) {
-            favouredSymetries.add(sym);
+        public void setTruePermutation(Permutation perm) {
+            favouredPermutations.add(perm);
             certain = true;
-            trueSymmetry = sym;
-            trueRelRule = getRelativeRule(sym);
-            trueAbsRule = getAbsoluteRule(sym, Transformation.IDENTITY);
+            truePermutation = perm;
+            trueRelRule = getRelativeRule(perm);
+            trueAbsRule = getAbsoluteRule(perm, D4.ID);
         }
     
         @Override
@@ -411,12 +404,12 @@ public class TessellationSetup {
             return code + (certain ? "🗸" : "?") 
             + "\nPotential Center Info:\n\t" 
             + potentialSymmetries.stream()
-            .map(sym -> (
-                sym.simple() 
+            .map(perm -> (
+                D4.getLabel(perm)
                 + " : [abs=" 
-                + getAbsoluteCenter(sym) 
+                + getAbsoluteCenter(perm) 
                 + "],[rel=" 
-                + getRelativeRule(sym) 
+                + getRelativeRule(perm) 
                 + "]"
             )).toList();
         }
@@ -424,34 +417,34 @@ public class TessellationSetup {
 }
 
 abstract class PositionRule {
-    public Transformation symmetry;
+    public Permutation permutation;
     public Point point;
 
-    public PositionRule(Transformation symmetry, Point point) {
-        this.symmetry = symmetry;
+    public PositionRule(Permutation perm, Point point) {
+        this.permutation = perm;
         this.point = point;
     }
 
     @Override
     public boolean equals(Object obj) {
         if(!(obj instanceof PositionRule rule)) return false;
-        boolean sameSymmetry = symmetry.equals(rule.symmetry);
+        boolean samePerm = permutation.equals(rule.permutation);
         boolean samePoint = point.equals(rule.point);
-        return (sameSymmetry && samePoint);
+        return (samePerm && samePoint);
     }
 
     @Override
     public String toString() {
-        return symmetry.simple() + "@" + point;
+        return D4.getLabel(permutation) + "@" + point;
     }
 }
-//you will find a shape with this code and this symmetry at this point
+//you will find a shape with this code and this permutation at this point
 //only valid for one planeTransform
 class AbsoluteRule extends PositionRule {
     public int codeAtPlace;
 
-    public AbsoluteRule(int codeAtPlace, Transformation symmetry, Point point) {
-        super(symmetry, point);
+    public AbsoluteRule(int codeAtPlace, Permutation perm, Point point) {
+        super(perm, point);
         this.codeAtPlace = codeAtPlace;
     }
 
@@ -460,18 +453,18 @@ class AbsoluteRule extends PositionRule {
         return "{" + codeAtPlace + "@" + super.toString() + "}";
     }
 }
-//this code declares that you will find a shape with this symmetry at this point
+//this code declares that you will find a shape with this permutation at this point
 class RelativeRule extends PositionRule {
     public int declaringCode;
     public boolean incorrect = false;
 
-    public RelativeRule(int declaringCode, Transformation symmetry, Point point) {
-        super(symmetry, point);
+    public RelativeRule(int declaringCode, Permutation perm, Point point) {
+        super(perm, point);
         this.declaringCode = declaringCode;
     }
 
     public RelativeRule adjust(Point change) {
-        return new RelativeRule(declaringCode, symmetry, point.add(change));
+        return new RelativeRule(declaringCode, permutation, point.add(change));
     }
 
     @Override
@@ -485,8 +478,8 @@ class RelativeRule extends PositionRule {
         return super.equals(obj) && rule.declaringCode == declaringCode;
     }
 
-    public RelativeRule transform(Transformation symmetry) {
-        return new RelativeRule(declaringCode, this.symmetry.apply(symmetry), point.transform(symmetry));
+    public RelativeRule transform(Permutation permutation) {
+        return new RelativeRule(declaringCode, D4.apply(this.permutation, permutation), point.transform(permutation));
     }
 }
 

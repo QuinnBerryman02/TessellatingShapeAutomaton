@@ -12,10 +12,12 @@ public class Grouping {
     public static Dihedral4 D4 = new Dihedral4();
 
     public static class Dihedral4 extends Group<Permutation> {
+        public Permutation ID;
         public Dihedral4() {
             super(List.of(1234,2341,3412,4123,2143,4321,3214,1432)
             .stream().map(Permutation::new).toList(), Permutation.OP);
             setLabels("ID","90","18","27","FX","FY","TR","TL");
+            ID = identity;
         }
 
         public Permutation apply(Permutation p1, Permutation p2) {
@@ -28,6 +30,16 @@ public class Grouping {
         
         public String getLabel(Permutation p) {
             return labelMap.get(p);
+        }
+
+        public List<Permutation> getPermutations() {
+            return elements;
+        }
+
+        public Permutation get(String label) {
+           return labelMap.entrySet().stream()
+           .filter(e -> e.getValue().equals(label))
+           .findFirst().orElse(null).getKey();
         }
     }
 

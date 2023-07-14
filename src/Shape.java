@@ -1,12 +1,13 @@
 package src;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import src.util.GeometryUtil.*;
+import src.util.Grouping.Permutation;
 import src.datastructs.*;
+import static src.util.Grouping.D4;
 
 public class Shape {
     private static final boolean T=true,F=false;
@@ -69,19 +70,19 @@ public class Shape {
         .filter(p -> !points.contains(p)).collect(Collectors.toList());
     }
 
-    public List<Transformation> findSymmetriesThatLookTheSame(Transformation symmetry) {
-        Matrix<Boolean> goal = bitmap.transform(symmetry);
-        return new ArrayList<>(Arrays.stream(Transformation.values())
-        .filter(sym -> bitmap.transform(sym).equals(goal)).toList());
+    public List<Permutation> findPermutationsThatLookTheSame(Permutation permutation) {
+        Matrix<Boolean> goal = bitmap.transform(permutation);
+        return new ArrayList<>(D4.getPermutations().stream()
+        .filter(perm -> bitmap.transform(perm).equals(goal)).toList());
     }
 
-    public List<Transformation> findSymmetriesThatAlign(Matrix<Boolean> map) {
-        return Arrays.stream(Transformation.values())
-        .filter(sym -> map.transform(sym).equals(bitmap)).toList();
+    public List<Permutation> findSymmetriesThatAlign(Matrix<Boolean> map) {
+        return D4.getPermutations().stream()
+        .filter(perm -> map.transform(perm).equals(bitmap)).toList();
     }
 
-    public Point getCenterTransformed(Transformation transformation) {
-        return bitmap.pointAfterTransformation(center, transformation);
+    public Point getCenterTransformed(Permutation Permutation) {
+        return bitmap.pointAfterPermutation(center, Permutation);
     }
 
     public static void main(String[] args) {

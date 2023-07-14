@@ -3,7 +3,9 @@ package src.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import src.util.Grouping.Permutation;
 import src.util.Util.*;
+import static src.util.Grouping.D4;
 
 public class GeometryUtil {
     public record Vector(int vx, int vy) {
@@ -128,16 +130,17 @@ public class GeometryUtil {
             return "[" + x + "," + y + "]";
         }
 
-        public Point transform(Transformation symmetry) {
-            return switch(symmetry) {
-                case IDENTITY -> new Point(x, y);
-                case ROT_90 -> new Point( -y, x);
-                case ROT_180 -> new Point(-x,-y);
-                case ROT_270 -> new Point( y,-x);
-                case FLIP_X -> new Point( -x, y);
-                case FLIP_Y -> new Point(  x,-y);
-                case DIAG_TR -> new Point(-y,-x);
-                case DIAG_TL -> new Point( y, x);
+        public Point transform(Permutation permutation) {
+            return switch(D4.getLabel(permutation)) {
+                default -> null;
+                case "ID" -> new Point(x, y);
+                case "90" -> new Point( -y, x);
+                case "18" -> new Point(-x,-y);
+                case "27" -> new Point( y,-x);
+                case "FX" -> new Point( -x, y);
+                case "FY" -> new Point(  x,-y);
+                case "TR" -> new Point(-y,-x);
+                case "TL" -> new Point( y, x);
             };
         }
 
@@ -235,55 +238,6 @@ public class GeometryUtil {
             if(p.x < x || p.x >= x + width) return false;
             if(p.y < y || p.y >= y + height) return false;
             else return true;
-        }
-    }
-    
-    public enum Transformation {
-        IDENTITY,
-        ROT_90,
-        ROT_180,
-        ROT_270,
-        FLIP_X,
-        FLIP_Y,
-        DIAG_TR,
-        DIAG_TL;
-    
-        private static Transformation[][] applicationTable = {
-            {IDENTITY,  ROT_90,     ROT_180,    ROT_270,    FLIP_X,     FLIP_Y,     DIAG_TR,    DIAG_TL},
-            {ROT_90,    ROT_180,    ROT_270,    IDENTITY,   DIAG_TL,    DIAG_TR,    FLIP_X,     FLIP_Y},
-            {ROT_180,   ROT_270,    IDENTITY,   ROT_90,     FLIP_Y,     FLIP_X,     DIAG_TL,    DIAG_TR},
-            {ROT_270,   IDENTITY,   ROT_90,     ROT_180,    DIAG_TR,    DIAG_TL,    FLIP_Y,     FLIP_X},
-            {FLIP_X,    DIAG_TR,    FLIP_Y,     DIAG_TL,    IDENTITY,   ROT_180,    ROT_270,    ROT_90},
-            {FLIP_Y,    DIAG_TL,    FLIP_X,     DIAG_TR,    ROT_180,    IDENTITY,   ROT_90,     ROT_270},
-            {DIAG_TR,   FLIP_Y,     DIAG_TL,    FLIP_X,     ROT_90,     ROT_270,    IDENTITY,   ROT_180},
-            {DIAG_TL,   FLIP_X,     DIAG_TR,    FLIP_Y,     ROT_270,    ROT_90,     ROT_180,    IDENTITY},
-        };
-        //column by row
-        public Transformation apply(Transformation transformation) {
-            return applicationTable[transformation.ordinal()][this.ordinal()];
-        }
-    
-        public Transformation unapply(Transformation transformation) {
-            return applicationTable[this.ordinal()][transformation.inversion().ordinal()];
-        }
-
-        public Transformation inversion() {
-            if(this.equals(ROT_90)) return ROT_270;
-            if(this.equals(ROT_270)) return ROT_90;
-            return this;
-        }
-
-        public String simple() {
-            return switch(this) {
-                case IDENTITY -> "ID";
-                case ROT_90 -> "90";
-                case ROT_180 -> "18";
-                case ROT_270 -> "27";
-                case FLIP_X -> "FX";
-                case FLIP_Y -> "FY";
-                case DIAG_TR -> "TR";
-                case DIAG_TL -> "TL";
-            };
         }
     }
 
