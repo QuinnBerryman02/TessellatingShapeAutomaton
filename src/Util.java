@@ -1,7 +1,6 @@
 package src;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -292,6 +291,12 @@ public class Util {
             
         }
 
+        public PermutationGroup(List<Permutation> permutations) {
+            order = permutations.size();
+            this.permutations = permutations;
+            if(order != 0) this.identity = this.permutations.get(0);
+        }
+
         public void setLabels(String... labels) {
             int i=0;
             for (String string : labels) {
@@ -324,15 +329,40 @@ public class Util {
         public Matrix<Permutation> generateCayleyTable() {
             Matrix<Permutation> mat = new Matrix<Util.Permutation>(getOrder(), getOrder(), Permutation.class);
             mat.setorator((i, j) -> {
+                // System.out.println(permutations.get(i) + " x " + permutations.get(j) + " = " + permutations.get(j).multiply(permutations.get(i)));
                 return permutations.get(j).multiply(permutations.get(i));
             });
-            mat.setStringMap(p -> labelMap.get(p));
+            mat.setStringMap(p -> labelMap.getOrDefault(p, "??"));
             return mat;
         }
 
         public List<PermutationGroup> findProperSubGroups() {
-            List<Integer> primeFactors = primeFactors(order);
-            return null;
+            List<PermutationGroup> subGroups = new ArrayList<>();
+            List<Integer> potentialOrders = divisors(order); //by lagranges theorem
+            potentialOrders.remove((Integer)1);             //remove the trivial group
+            potentialOrders.remove((Integer)order);         //remove the original group
+            for (int potentialOrder : potentialOrders) {
+                int elementsToChoose = potentialOrder-1;    //remove identity, has to be in it
+                List<List<Permutation>> potentialPermutationLists = kcombinations(cdr(permutations), elementsToChoose);
+                potentialPermutationLists.forEach(l -> l.add(identity));
+                for (List<Permutation> permList : potentialPermutationLists) {
+                    PermutationGroup subgroup = new PermutationGroup(permList);
+                    subgroup.setLabelMap(labelMap);
+                    if(subgroup.closed()) subGroups.add(subgroup);
+                }
+            }
+            return subGroups;
+        }
+
+        @Override
+        public String toString() {
+            return permutations.stream().map(p -> labelMap.get(p)).toList().toString();
+        }
+
+        public void setLabelMap(Map<Permutation, String> labelMap) {
+            labelMap.forEach((p,l) -> {
+                if(permutations.contains(p)) this.labelMap.put(p, l);
+            });
         }
     }
 
@@ -389,7 +419,7 @@ public class Util {
         @Override
         public boolean equals(Object obj) {
             if(!(obj instanceof Permutation p)) return false;
-            return this.cycleDecomposition.containsAll(p.cycleDecomposition) && this.n == p.n;
+            return this.cycleDecomposition.containsAll(p.cycleDecomposition) && (cycleDecomposition.size() == p.cycleDecomposition.size());
         }
 
         @Override
@@ -496,9 +526,9 @@ public class Util {
             }
             listOfPowerLists.add(possiblePowers);
         });
-        System.out.println(listOfPowerLists);
         return multiplex(listOfPowerLists, 1, (a,b)->a*b);
     }
+    public static class INCR {int i=0;int incr() {return i++;}}
     //takes a list of lists, and returns a list of ntuples reduced with an op, made of 1 element from each list 
     public static <E> List<E> multiplex(List<List<E>> listOfLists, E identity ,BinaryOperator<E> op) {
         int[] totals = listOfLists.stream().mapToInt(List::size).toArray();
@@ -528,13 +558,50 @@ public class Util {
         return total;
     } 
 
-    public static class INCR {int i=0;int incr() {return i++;}}
+    public static int fact(int n) {
+        if(n < 0) return 0;
+        int total=1;
+        for(int i=1;i<=n;i++) total*=i;
+        return total;
+    }
+
+    public static int choose(int n, int k) {
+        return fact(n) / (fact(k) * fact(n-k)); 
+    }
+    //returns all combinations of size k, ie amount = choose (list.size, k)
+    public static <E> List<List<E>> kcombinations(List<E> list, int k) {
+        if(list.isEmpty()) return new ArrayList<>();
+        List<List<E>> combinations = new ArrayList<>();
+        if(k == 1) {
+            list.forEach(e -> combinations.add(new ArrayList<>(List.of(e))));
+            return combinations;
+        }
+        kcombinations(cdr(list), k-1).forEach(c -> {
+            c.add(car(list));
+            combinations.add(c);
+        });
+        kcombinations(cdr(list), k).forEach(combinations::add);
+        return combinations;
+    }
+
+    public static <E> E car(List<E> list) {
+        if(list.isEmpty()) return null;
+        return list.get(0);
+    }
+
+    public static <E> List<E> cdr(List<E> list) {
+        if(list.isEmpty()) return new ArrayList<>();
+        return list.subList(1, list.size());
+    }
  
     public static void main(String[] args) {
         PermutationGroup dihedral4 = new PermutationGroup(1234,2341,3412,4123,2143,4321,3214,1432);
         dihedral4.setLabels("ID","90","18","27","FX","FY","TR","TL");
         dihedral4.generateCayleyTable().print();
-        System.out.println(divisors(546));
+        dihedral4.findProperSubGroups().forEach(sg -> {
+            System.out.println();
+            sg.generateCayleyTable().print();
+        });
     }
 
     
