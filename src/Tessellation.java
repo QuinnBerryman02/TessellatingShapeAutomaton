@@ -21,11 +21,13 @@ public class Tessellation {
     public Vector basisVector2;
     public HashGraph<Point,Symmetry,Boolean> hashGraph = new HashGraph<>();
     public static Color[] colorCodes = {Color.cyan, Color.pink, Color.green, Color.yellow, Color.red,  Color.magenta, Color.orange, Color.lightGray, Color.darkGray};
-    public static Color[] coolColorCodes = {new Color(3,51,71), new Color(129,160,225), new Color(8,142,199), new Color(150,212,203)};
+    public static Color[] coolColorCodes = {new Color(3,51,71), new Color(129,160,225), new Color(8,142,199), new Color(150,212,203), Color.orange};
 
     public Tessellation(Shape shape, List<RelativeRule> rules) {
         this.shape = shape;
+        System.out.println("Creating a new shape from " + rules);
         Map<Symmetry, List<RelativeRule>> relativeRuleMap = calculateRelativeRuleMap(rules);
+        System.out.println(relativeRuleMap);
         Map<Symmetry, Set<Point>> examplePointsMap = generateMoreExamplePoints(relativeRuleMap);
         calculateOffsetVectors(examplePointsMap);
         Set<Point> centeredPoints = getCenteredPoints(examplePointsMap);
@@ -121,6 +123,7 @@ public class Tessellation {
     public void findBetterOffsetVectors(Map<Symmetry, Set<Point>> examplePointsMap) {
         Predicate<Point> centerParallelogram = p -> realToVirtual(p, Symmetry.IDENTITY).equals(Point.ORIGIN);
         for (Symmetry symmetry : examplePointsMap.keySet()) {
+            System.out.println(symmetry + " -examplePoints>>> " + examplePointsMap);
             Point offset = examplePointsMap.get(symmetry).stream().filter(centerParallelogram).min(Comparator.comparingInt(Point::eulerDistance)).orElse(null);
             offsetVectors.put(symmetry, offset.toVector());
         }
@@ -205,4 +208,33 @@ public class Tessellation {
         new Pair<>(Symmetry.ROT_180, new Point(11, 0)),
         new Pair<>(Symmetry.ROT_180, new Point(3, 5)),
         new Pair<>(Symmetry.ROT_180, new Point(11, 5))).toTessellation();
+
+    public static final Tessellation DOMINO_5 = new TessellationSetup(Shape.DOMINO,
+        new Pair<>(Symmetry.IDENTITY, new Point(0, 1)),
+        new Pair<>(Symmetry.ROT_90, new Point(-1, 0)),
+        new Pair<>(Symmetry.ROT_90, new Point(2, 0)),
+        new Pair<>(Symmetry.ROT_90, new Point(0, -2)),
+        new Pair<>(Symmetry.ROT_90, new Point(1, -2))).toTessellation();
+
+    public static final Tessellation DOMINO_4 = new TessellationSetup(Shape.DOMINO,
+        new Pair<>(Symmetry.IDENTITY, new Point(-2, 0)),
+        new Pair<>(Symmetry.IDENTITY, new Point(2, 0)),
+        new Pair<>(Symmetry.IDENTITY, new Point(0, -1)),
+        new Pair<>(Symmetry.IDENTITY, new Point(0, 1))).toTessellation();
+
+        public static final Tessellation DOMINO_6_STRAIGHT = new TessellationSetup(Shape.DOMINO,
+        new Pair<>(Symmetry.IDENTITY, new Point(-2, 0)),
+        new Pair<>(Symmetry.IDENTITY, new Point(2, 0)),
+        new Pair<>(Symmetry.IDENTITY, new Point(-1, -1)),
+        new Pair<>(Symmetry.IDENTITY, new Point(1, -1)),
+        new Pair<>(Symmetry.IDENTITY, new Point(-1, 1)),
+        new Pair<>(Symmetry.IDENTITY, new Point(1, 1))).toTessellation();
+
+        public static final Tessellation DOMINO_6_ZIG_ZAG = new TessellationSetup(Shape.DOMINO,
+        new Pair<>(Symmetry.ROT_90, new Point(-1, 0)),
+        new Pair<>(Symmetry.ROT_90, new Point(2, -1)),
+        new Pair<>(Symmetry.IDENTITY, new Point(-1, -1)),
+        new Pair<>(Symmetry.IDENTITY, new Point(1, 1)),
+        new Pair<>(Symmetry.ROT_90, new Point(1, -2)),
+        new Pair<>(Symmetry.ROT_90, new Point(0, 1))).toTessellation();
 }

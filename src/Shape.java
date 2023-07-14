@@ -98,6 +98,7 @@ public class Shape {
         BOWL.bitmap.print();
     }
 
+    public static final Shape DOMINO = new Shape(new Matrix<>(new Boolean[][]{{T,T}}));
     public static final Shape SQUARE = new Shape(new Matrix<Boolean>(new Boolean[][]{{T,T}, {T,T}}));
     public static final Shape L_SHAPE = new Shape(new Matrix<Boolean>(new Boolean[][] {{T,F},{T,F},{T,T}}));
     public static final Shape SMALL_L_SHAPE = new Shape(new Matrix<Boolean>(new Boolean[][] {{T,F},{T,T}}));

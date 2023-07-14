@@ -256,9 +256,9 @@ public class GeometryUtil {
             {DIAG_TR,   FLIP_Y,     DIAG_TL,    FLIP_X,     ROT_90,     ROT_270,    IDENTITY,   ROT_180},
             {DIAG_TL,   FLIP_X,     DIAG_TR,    FLIP_Y,     ROT_270,    ROT_90,     ROT_180,    IDENTITY},
         };
-    
+        //column by row
         public Symmetry apply(Symmetry transformation) {
-            return applicationTable[this.ordinal()][transformation.ordinal()];
+            return applicationTable[transformation.ordinal()][this.ordinal()];
         }
     
         public Symmetry unapply(Symmetry transformation) {

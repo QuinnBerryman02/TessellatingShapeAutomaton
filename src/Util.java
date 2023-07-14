@@ -1,7 +1,10 @@
 package src;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -75,6 +78,7 @@ public class Util {
         private int width;
         private int height;
         private Function<E, Color> colorMap;
+        private Function<E, String> stringMap = Object::toString;
     
         public Matrix(E[][] data) {
             this.width = data[0].length;
@@ -84,6 +88,10 @@ public class Util {
 
         public void setColorMap(Function<E, Color> colorMap) {
             this.colorMap = colorMap;
+        }
+
+        public void setStringMap(Function<E, String> stringMap) {
+            this.stringMap = stringMap;
         }
 
         @SuppressWarnings("unchecked")
@@ -188,11 +196,12 @@ public class Util {
             }
             Matrix<E> newMat = new Matrix<>(newData);
             newMat.setColorMap(colorMap);
+            newMat.setStringMap(stringMap);
             return newMat;
         }
     
         public void print() {
-            print(Object::toString);
+            print(stringMap);
         }
 
         public void print(Function<E, String> customToString) {
@@ -264,5 +273,177 @@ public class Util {
             }
             return true;
         }
+    }
+
+    static class PermutationGroup {
+        List<Permutation> permutations = new ArrayList<>();
+        Map<Permutation, String> labelMap = new HashMap<>(); 
+
+        //the first permutation is assumed to be the identity
+        public PermutationGroup(int... permutations) {
+            for (int p : permutations) {
+                this.permutations.add(new Permutation(p));
+            }
+        }
+
+        public void setLabels(String... labels) {
+            int i=0;
+            for (String string : labels) {
+                labelMap.put(permutations.get(i++), string);
+            }
+        }
+
+        public int getOrder() {
+            return permutations.size();
+        }
+
+        public Matrix<Permutation> generateCayleyTable() {
+            Matrix<Permutation> mat = new Matrix<Util.Permutation>(getOrder(), getOrder(), Permutation.class);
+            mat.setorator((i, j) -> {
+                return permutations.get(j).multiply(permutations.get(i));
+            });
+            mat.setStringMap(p -> labelMap.get(p));
+            return mat;
+        }
+    }
+
+    static class Permutation {
+        private short n;
+        private List<Cycle> cycleDecomposition = new ArrayList<>();
+
+        public Permutation(int permutation) {
+            short[] changedIndices = intToShortArray(permutation);
+            n = (short)changedIndices.length;
+            for(short i=1;i<=n;i++) {
+                short newI = changedIndices[i-1];
+                if(newI == -1) continue; //already checked
+                changedIndices[i-1] = -1;
+                if(newI == i) continue; //no change
+                List<Short> cycleIndices = new ArrayList<>();
+                cycleIndices.add(i);
+                do {
+                    short currentI = newI;
+                    cycleIndices.add(currentI);
+                    newI = changedIndices[currentI-1];
+                    changedIndices[currentI-1] = -1;
+                } while(newI != -1 && newI != i);
+                cycleDecomposition.add(new Cycle(cycleIndices));
+            }
+        }
+
+        public List<Cycle> getCycleDecomposition() {
+            return cycleDecomposition;
+        }
+
+        public short apply(short s) {
+            return cycleDecomposition.stream().reduce(s, (acc, cycle) -> cycle.apply(acc), (a, b) -> b);
+        }
+        //ans = p ∘ this, ie this first then p
+        public Permutation multiply(Permutation p) {
+            short[] map = new short[n];
+            for(short i=1;i<=n;i++) {
+                map[i-1] = p.apply(apply(i)); 
+            }
+            return new Permutation(shortArrayToInt(map));
+        }
+
+        @Override
+        public String toString() {
+            if(cycleDecomposition.isEmpty()) return "ID";
+            String s = "";
+            for (Cycle cycle : cycleDecomposition) {
+                s += cycle.toString();
+            }
+            return s;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if(!(obj instanceof Permutation p)) return false;
+            return this.cycleDecomposition.containsAll(p.cycleDecomposition) && this.n == p.n;
+        }
+
+        @Override
+        public int hashCode() {
+            return cycleDecomposition.stream().reduce(1, (acc, c) -> 10 * (acc + c.hashCode()), (a, b) -> b);
+        }
+    }
+
+    static class Cycle {
+        private Map<Short, Short> map = new HashMap<>();
+        private short n;
+        private short first;
+        public Cycle(List<Short> indices) {
+            this.n = (short)indices.size();
+            this.first = indices.get(0);
+            for(short i=0;i<n;i++) {
+                map.put(indices.get(i),indices.get((i+1) % n));
+            }
+        }
+
+        public int getLength() {
+            return n;
+        }
+
+        public short apply(short i) {
+            return map.getOrDefault(i, i);
+        }
+
+        public List<Short> getOrderedList() {
+            List<Short> indices = new ArrayList<>();
+            short index = first;
+            do {
+                indices.add(index);
+                index = map.get(index);
+            } while (index != first);
+            return indices;
+        }
+
+        @Override
+        public String toString() {
+            String s = "(";
+            int i=1;
+            for(short sh : getOrderedList()) {
+                s += sh + (i++==n ? "" : ",");
+            }
+            return s + ")";
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if(!(obj instanceof Cycle c)) return false;
+            return this.map.equals(c.map);
+        }
+
+        @Override
+        public int hashCode() {
+            return map.entrySet().stream().reduce(1, (acc, c) -> 10 * (acc + c.hashCode()), (a, b) -> b);
+        }
+    }
+
+    static short[] intToShortArray(int i) {
+        i = Math.abs(i);
+        int digits = Integer.toString(i).length();
+        short[] spreadOutDigits = new short[digits];
+        for (int j = digits-1; j >= 0; j--) {
+            spreadOutDigits[j] = (short)(i % 10);
+            i /= 10;
+        }
+        return spreadOutDigits;
+    }
+
+    static int shortArrayToInt(short[] arr) {
+        int i = 0;
+        int digits = arr.length;
+        for (int j = digits-1; j >= 0; j--) {
+            i += arr[j] * Math.pow(10, digits - j - 1); 
+        }
+        return i;
+    } 
+
+    public static void main(String[] args) {
+        PermutationGroup dihedral4 = new PermutationGroup(1234,2341,3412,4123,2143,4321,3214,1432);
+        dihedral4.setLabels("ID","90","18","27","FX","FY","TR","TL");
+        dihedral4.generateCayleyTable().print();
     }
 }

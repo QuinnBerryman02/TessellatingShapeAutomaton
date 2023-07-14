@@ -24,6 +24,7 @@ public class TessellationSetup {
     private Color[] colorCodes = {Color.black, Color.cyan, Color.pink, Color.green, Color.yellow, Color.red,  Color.magenta, Color.orange, Color.lightGray, Color.darkGray};
 
     public TessellationSetup(Shape shape) {
+        System.out.println("TESTING");
         this.shape = shape;
         int shapeWidth = shape.getBitmap().getWidth();
         int shapeHeight = shape.getBitmap().getHeight();
@@ -44,6 +45,7 @@ public class TessellationSetup {
         for (Pair<Symmetry,Point> rule : relativeRules) {
             addShape(rule.a, rule.b.add(center));
         }
+        setup();
     }
 
     public void reset() {
@@ -100,6 +102,9 @@ public class TessellationSetup {
     }
 
     public boolean isValidTessellation() {
+        if (DEBUG) System.out.println("Checking if valid...");
+        if (DEBUG) System.out.println("border tiles occupied : " + areAllBorderTilesOccupied()); 
+        if (DEBUG) System.out.println("border shapes following rules : " + doBorderShapesFollowRules());
         print();
         return areAllBorderTilesOccupied() && doBorderShapesFollowRules();
     }
@@ -108,6 +113,10 @@ public class TessellationSetup {
         return shape.findBorderPoints().stream().allMatch(p -> {
             return mat.get(p.y() + center.y(), p.x() + center.x()) != 0;
         });
+    }
+
+    public boolean doBorderShapesFollowRules() {
+        return getBorderShapes().stream().allMatch(DefShape::followsRules);
     }
 
     public int numberOfBorderTilesOccupied() {
@@ -134,7 +143,7 @@ public class TessellationSetup {
         return getBorderShapes().stream().filter(bs -> !bs.certain).findFirst().orElse(null);
     }
 
-    public boolean doBorderShapesFollowRules() {
+    public void setup() {
         Map<Symmetry,Matrix<Integer>> planeTransformations = new HashMap<>();
         planeTransformations.put(Symmetry.IDENTITY, mat);
         List<RelativeRule> relativeRules = getAllRelativeRules();
@@ -177,7 +186,7 @@ public class TessellationSetup {
                         continue;
                     }
                     if(DEBUG) System.out.println(trueRule + " NO MATCH => failed");
-                    failedCodes.add(code);
+                    //failedCodes.add(rule.declaringCode);
                 }   
                 if(DEBUG) System.out.println("shape " + currentShape.code + " in symmetry " + shapeSymmetry + " was " + (currentShape.followsRules(shapeSymmetry) ? "valid" : "invalid"));   
             }
@@ -194,8 +203,9 @@ public class TessellationSetup {
             if(DEBUG) System.out.println(shape.code + " neighbours = " + shape.validNeigbourRules);
         }
         assignFinalRelativeRulesToMain();
-        return getBorderShapes().stream().allMatch(DefShape::followsRules);
     }
+
+    
 
     public List<RelativeRule> removeInvalidSymmetries(List<RelativeRule> knownIncorrectRules) {
         if(DEBUG) System.out.println("REMOVING INCORRECT SHAPE SYMMETRIES");
@@ -242,6 +252,7 @@ public class TessellationSetup {
     public void print() { mat.print(); }
 
     public void report() {
+        System.out.println("-------------------REPORT-------------------");
         mat.print();
         System.out.println("border tiles occupied : " + areAllBorderTilesOccupied()); 
         System.out.println("border shapes following rules : " + doBorderShapesFollowRules());
@@ -252,6 +263,11 @@ public class TessellationSetup {
         for (DefShape shape : getBorderShapes()) {
             if(DEBUG) System.out.println("Shape " + shape.code + " = " + shape.validNeigbourRules);
             List<RelativeRule> checkRules = shape.validNeigbourRules.get(shape.trueSymmetry);
+            if(checkRules == null) {
+                System.out.println("Shape " + shape.code + " didnt have a neighbour rule set for " + shape.trueSymmetry);
+                allEqual = false;
+                continue;
+            }
             allEqual = allEqual && checkRules.containsAll(trueRules) && checkRules.size() == trueRules.size();
         }
         if(allEqual) {
@@ -264,6 +280,32 @@ public class TessellationSetup {
     public Tessellation toTessellation() {
         if(!isValidTessellation()) return null;
         return new Tessellation(shape, getMainShape().validNeigbourRules.get(Symmetry.IDENTITY));
+    }
+
+    public static void main(String[] args) {
+        TessellationSetup DOMINO_5 = new TessellationSetup(Shape.DOMINO,
+        new Pair<>(Symmetry.IDENTITY, new Point(0, 1)),
+        new Pair<>(Symmetry.ROT_90, new Point(-1, 0)),
+        new Pair<>(Symmetry.ROT_90, new Point(2, 0)),
+        new Pair<>(Symmetry.ROT_90, new Point(0, -2)),
+        new Pair<>(Symmetry.ROT_90, new Point(1, -2)));
+        System.out.println("im in oregon but im still driving");
+        DOMINO_5.report();
+        System.out.println("im in oregon but im still driving");
+        DOMINO_5.report();
+        System.out.println("im in oregon but im still driving");
+        
+        // TessellationSetup DOMINO_6_ZIG_ZAG = new TessellationSetup(Shape.DOMINO,
+        // new Pair<>(Symmetry.ROT_90, new Point(-1, 0)),
+        // new Pair<>(Symmetry.ROT_90, new Point(2, -1)),
+        // new Pair<>(Symmetry.IDENTITY, new Point(-1, -1)),
+        // new Pair<>(Symmetry.IDENTITY, new Point(1, 1)),
+        // new Pair<>(Symmetry.ROT_90, new Point(1, -2)),
+        // new Pair<>(Symmetry.ROT_90, new Point(0, 1)));
+        // DOMINO_6_ZIG_ZAG.report();
+
+        Tessellation t = DOMINO_5.toTessellation();
+        System.out.println(t);
     }
 
     class DefShape {

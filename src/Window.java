@@ -18,16 +18,14 @@ public class Window extends JFrame implements MouseListener, MouseMotionListener
         addMouseWheelListener(this);
 
         panel = new DrawPanel();
-        panel.setVisible(true);
         
         setSize(WINDOW_SIZE, WINDOW_SIZE);
         getContentPane().add(panel);
-        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setVisible(true);
 
         plane = new Plane(PLANE_SIZE, PLANE_SIZE);
 
-        Tessellation tes = Tessellation.SMALL_L_2;
+        Tessellation tes = Tessellation.DOMINO_5; 
         tes.drawToPlane(plane);
         repaint();
     }
