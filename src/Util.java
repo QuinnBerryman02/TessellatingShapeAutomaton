@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 
 import java.lang.reflect.Array;
@@ -278,12 +279,17 @@ public class Util {
     static class PermutationGroup {
         List<Permutation> permutations = new ArrayList<>();
         Map<Permutation, String> labelMap = new HashMap<>(); 
+        private Permutation identity = null;
+        private int order;
 
         //the first permutation is assumed to be the identity
         public PermutationGroup(int... permutations) {
+            order = permutations.length;
             for (int p : permutations) {
                 this.permutations.add(new Permutation(p));
             }
+            if(order != 0) this.identity = this.permutations.get(0);
+            
         }
 
         public void setLabels(String... labels) {
@@ -293,8 +299,26 @@ public class Util {
             }
         }
 
+        public boolean validIdentity() {
+            if(identity == null) return false;
+            return permutations.stream().allMatch(p -> p.multiply(identity).equals(p));
+        }
+
+        public boolean closed() {
+            for(var p1 : permutations) {
+                for(var p2 : permutations) {
+                    if(!permutations.contains(p1.multiply(p2))) return false;
+                }
+            }
+            return true;
+        }
+
         public int getOrder() {
-            return permutations.size();
+            return order;
+        }
+
+        public Permutation getIdentity() {
+            return identity;
         }
 
         public Matrix<Permutation> generateCayleyTable() {
@@ -304,6 +328,11 @@ public class Util {
             });
             mat.setStringMap(p -> labelMap.get(p));
             return mat;
+        }
+
+        public List<PermutationGroup> findProperSubGroups() {
+            List<Integer> primeFactors = primeFactors(order);
+            return null;
         }
     }
 
@@ -421,7 +450,7 @@ public class Util {
         }
     }
 
-    static short[] intToShortArray(int i) {
+    public static short[] intToShortArray(int i) {
         i = Math.abs(i);
         int digits = Integer.toString(i).length();
         short[] spreadOutDigits = new short[digits];
@@ -432,7 +461,7 @@ public class Util {
         return spreadOutDigits;
     }
 
-    static int shortArrayToInt(short[] arr) {
+    public static int shortArrayToInt(short[] arr) {
         int i = 0;
         int digits = arr.length;
         for (int j = digits-1; j >= 0; j--) {
@@ -441,9 +470,72 @@ public class Util {
         return i;
     } 
 
+    public static List<Integer> primeFactors(int n) {
+        List<Integer> factors = new ArrayList<>();
+        for(int i=2;i<=n;i++) {
+            if(n % i == 0) {
+                factors.add(i);
+                n /= i;
+                i--;
+            }
+        }
+        return factors;
+    }
+
+    public static List<Integer> divisors(int n) {
+        var primeFactors = primeFactors(n);
+        Map<Integer, Integer> primePowers = new HashMap<>();
+        primeFactors.forEach(pf -> {
+            primePowers.compute(pf, (k, v) -> (v == null) ? 1 : v + 1);
+        });
+        List<List<Integer>> listOfPowerLists = new ArrayList<>();
+        primePowers.forEach((pf,maxPower) -> {
+            List<Integer> possiblePowers = new ArrayList<>();
+            for(int i=0;i<=maxPower;i++) {
+                possiblePowers.add(pow(pf, i));
+            }
+            listOfPowerLists.add(possiblePowers);
+        });
+        System.out.println(listOfPowerLists);
+        return multiplex(listOfPowerLists, 1, (a,b)->a*b);
+    }
+    //takes a list of lists, and returns a list of ntuples reduced with an op, made of 1 element from each list 
+    public static <E> List<E> multiplex(List<List<E>> listOfLists, E identity ,BinaryOperator<E> op) {
+        int[] totals = listOfLists.stream().mapToInt(List::size).toArray();
+        int listCount = listOfLists.size(); 
+        int[] index = new int[totals.length];
+        List<E> newElements = new ArrayList<>();
+        while(true) {
+            //add divisor
+            INCR li = new INCR();
+            newElements.add(listOfLists.stream()
+            .map(l -> l.get(index[li.incr()]))
+            .reduce(identity, op));
+            //increment index
+            boolean allOverFlow = true;
+            for(int i=0;i<listCount;i++) {
+                if(++index[i] == totals[i]) index[i] = 0;
+                else {allOverFlow = false; break;}
+            }
+            if(allOverFlow) break;
+        }
+        return newElements;
+    }
+
+    public static int pow(int a, int b) {
+        int total = 1;
+        for(int n=0;n<b;n++) total*=a;
+        return total;
+    } 
+
+    public static class INCR {int i=0;int incr() {return i++;}}
+ 
     public static void main(String[] args) {
         PermutationGroup dihedral4 = new PermutationGroup(1234,2341,3412,4123,2143,4321,3214,1432);
         dihedral4.setLabels("ID","90","18","27","FX","FY","TR","TL");
         dihedral4.generateCayleyTable().print();
+        System.out.println(divisors(546));
     }
+
+    
 }
