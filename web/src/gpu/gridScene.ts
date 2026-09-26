@@ -1,5 +1,5 @@
-import { diag } from "../diag";
-import type { GpuContext } from "./device";
+import { diag } from "../diag.ts";
+import type { GpuContext } from "./device.ts";
 import gridShader from "../shaders/grid.wgsl?raw";
 import renderShader from "../shaders/render.wgsl?raw";
 
@@ -28,6 +28,12 @@ export class GridScene {
   private readonly paramsData: ArrayBuffer;
   private readonly paramsF32: Float32Array;
   private readonly paramsU32: Uint32Array;
+
+  /**
+   * When true the compute kernel rewrites the grid every frame. Off in M1,
+   * where the CPU uploads a static tessellation; the growth sim turns it on.
+   */
+  simEnabled = false;
 
   constructor(gpu: GpuContext, width: number, height: number) {
     this.device = gpu.device;
@@ -104,19 +110,31 @@ export class GridScene {
     });
   }
 
+  /** Uploads one u32 per cell (see `model/tessellation.ts` raster format). */
+  setCells(cells: Uint32Array): void {
+    if (cells.length !== this.width * this.height) {
+      throw new Error(
+        `expected ${this.width * this.height} cells, got ${cells.length}`,
+      );
+    }
+    this.device.queue.writeBuffer(this.cellsBuffer, 0, cells);
+  }
+
   render(timeSeconds: number): void {
     this.updateCamera(timeSeconds);
 
     const encoder = this.device.createCommandEncoder();
 
-    const compute = encoder.beginComputePass();
-    compute.setPipeline(this.computePipeline);
-    compute.setBindGroup(0, this.computeBindGroup);
-    compute.dispatchWorkgroups(
-      Math.ceil(this.width / WORKGROUP),
-      Math.ceil(this.height / WORKGROUP),
-    );
-    compute.end();
+    if (this.simEnabled) {
+      const compute = encoder.beginComputePass();
+      compute.setPipeline(this.computePipeline);
+      compute.setBindGroup(0, this.computeBindGroup);
+      compute.dispatchWorkgroups(
+        Math.ceil(this.width / WORKGROUP),
+        Math.ceil(this.height / WORKGROUP),
+      );
+      compute.end();
+    }
 
     const view = this.context.getCurrentTexture().createView();
     const render = encoder.beginRenderPass({

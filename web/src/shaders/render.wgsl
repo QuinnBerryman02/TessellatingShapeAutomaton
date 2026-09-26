@@ -1,5 +1,5 @@
 // Draws the world grid (a storage buffer of packed cell ids) to the canvas.
-// Cell 0 is empty; values 1..4 index a small palette for now.
+// Cell 0 is empty; values 1..8 index a palette keyed by tile orientation (M1).
 
 struct Params {
   width: u32,
@@ -51,11 +51,15 @@ fn fs(in: VSOut) -> @location(0) vec4<f32> {
     return vec4<f32>(0.06, 0.07, 0.10, 1.0);
   }
 
-  var palette = array<vec4<f32>, 4>(
+  var palette = array<vec4<f32>, 8>(
     vec4<f32>(0.20, 0.80, 0.90, 1.0),
     vec4<f32>(0.90, 0.40, 0.80, 1.0),
     vec4<f32>(0.50, 0.90, 0.40, 1.0),
     vec4<f32>(0.95, 0.80, 0.30, 1.0),
+    vec4<f32>(0.35, 0.55, 0.95, 1.0),
+    vec4<f32>(0.95, 0.45, 0.40, 1.0),
+    vec4<f32>(0.65, 0.45, 0.95, 1.0),
+    vec4<f32>(0.55, 0.90, 0.75, 1.0),
   );
-  return palette[(v - 1u) % 4u];
+  return palette[(v - 1u) % 8u];
 }

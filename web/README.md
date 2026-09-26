@@ -10,7 +10,8 @@ npm install
 npm run dev              # vite dev server on http://localhost:5273
 npm run build            # typecheck + production build
 
-npm test                 # build + compile WGSL + headless GPU smoke test
+npm test                 # build + unit tests + compile WGSL + headless GPU smoke test
+npm run test:unit        # fast CPU unit tests (node --test, no browser)
 npm run verify:wgsl      # compile shaders in headless Brave (real tint)
 npm run smoke:browser    # boot the app headlessly, capture console + errors
 ```
@@ -41,32 +42,56 @@ on `http://localhost` instead.
 src/
   main.ts             bootstrap: device -> scene -> render loop
   diag.ts             diagnostics published to the DOM / window.__tsaDiag
+  core/
+    vec2.ts           integer vector helpers
+    d4.ts             the 8 square symmetries (transforms + group table)
+  model/
+    shape.ts          ShapeDef (a tile's cells)
+    tessellation.ts   TessellationDef, lattice maths, rasteriser, JSON
+    builtins.ts       example tessellations
+  solver/
+    validate.ts       exact-tiling validator
+    canonical.ts      symmetry/translation-invariant signature
   gpu/
     device.ts         adapter/device/context setup + canvas resize
-    gridScene.ts      world-grid buffer, compute pass, render pass
+    gridScene.ts      world-grid buffer, compute + render passes, setCells()
   shaders/
-    grid.wgsl         per-cell update kernel (placeholder for the sim/solver)
-    render.wgsl       draws the grid
+    grid.wgsl         per-cell update kernel (placeholder; the sim takes over in M3)
+    render.wgsl       draws the grid (palette keyed by tile orientation)
 scripts/
   verify-wgsl.mjs     headless shader compile check
   browser-smoke.mjs   headless end-to-end run + console capture
   browser-path.mjs    locate a Chromium-family binary
 ```
 
+CPU unit tests live next to their modules as `*.test.ts` and run under Node's
+`--experimental-strip-types` (no test framework dependency).
+
 ## Current contract
 
 The world is one `u32` per cell in a storage buffer, indexed `y * width + x`.
-`grid.wgsl` owns writing it; `render.wgsl` owns reading it. This is the seam the
-real model plugs into.
+`render.wgsl` reads it; a labelled cell holds `orientation + 1` (0 = unowned).
+In M1 the CPU rasterises a `TessellationDef` and uploads it with
+`GridScene.setCells`; the compute kernel (behind `simEnabled`) takes the buffer
+back over in M3.
 
-The compute kernel is currently a placeholder pattern. The next pieces to add:
+## Model & solver (M1)
 
-1. **`solver/`** — pure TS tessellation validation / enumeration (group theory,
-   symmetry transforms, overlap checks). CPU first; move the hot overlap checks
-   to a compute kernel once the data model is stable.
-2. **`model/`** — `TessellationDef` (shape mask, symmetry group, relative rules,
-   offsets), serializable to JSON.
-3. **`sim/`** — growth/claim/cut rules over the grid, fixed timestep.
+- A **`TessellationDef`** is a tile shape plus a lattice (`basis1`, `basis2`) and
+  a finite **motif** of placements. Every instance is a placement translated by a
+  lattice vector.
+- **`validateTessellation`** proves the motif tiles the plane exactly. It checks
+  that the motif area equals the lattice covolume, then uses difference sets to
+  rule out overlaps; together those force a perfect partition.
+- **`canonicalSignature`** is invariant under translation and the square's
+  symmetries, so a rotated copy is not counted as a new tessellation.
+
+Known limitation: canonicalisation reduces placements modulo the lattice, so it
+is exact for the reduced bases used so far but is not yet a general lattice
+canonical form.
+
+Next: `sim/` (growth/claim/cut, fixed timestep) and a first `game/` skirmish
+loop — the M2/M3 work in `plans/phase1.md`.
 
 ## Notes
 

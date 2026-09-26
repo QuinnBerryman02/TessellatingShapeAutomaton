@@ -233,3 +233,14 @@ validator is trusted.
 - **Fun check.** The snowball problem is the biggest design risk: growth +
   first-touch-wins can become a runaway. Severing and energy budgets are the
   planned answers; validate them early (M3/M4), not at polish.
+
+## Progress log
+
+- **M0 — done.** WebGPU device, world storage buffer, compute + render passes,
+  headless verification (`npm test` green).
+- **M1 — done.** `core/` (`vec2`, `D4`), `model/` (`ShapeDef`,
+  `TessellationDef`, builtins, JSON), `solver/` (exact-tiling validator and
+  canonical signature), CPU unit tests via `node --test` (`npm run test:unit`),
+  and the L-tromino brick rasterised from the model and rendered in place of the
+  placeholder pattern. Open follow-ups: a general lattice canonical form, and a
+  richer multi-orientation example once the enumerator exists.

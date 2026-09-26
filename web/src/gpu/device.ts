@@ -1,4 +1,4 @@
-import { diag } from "../diag";
+import { diag } from "../diag.ts";
 
 /** Thin wrapper around the WebGPU device + canvas context bootstrap. */
 export interface GpuContext {

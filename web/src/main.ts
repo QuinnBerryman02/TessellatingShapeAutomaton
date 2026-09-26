@@ -1,6 +1,8 @@
-import { initGpu, resizeCanvas } from "./gpu/device";
-import { GridScene } from "./gpu/gridScene";
-import { diag, installDiagnostics, publishDiagnostics } from "./diag";
+import { diag, installDiagnostics, publishDiagnostics } from "./diag.ts";
+import { initGpu, resizeCanvas } from "./gpu/device.ts";
+import { GridScene } from "./gpu/gridScene.ts";
+import { L_TROMINO_BRICK } from "./model/builtins.ts";
+import { rasterize } from "./model/tessellation.ts";
 
 const canvas = document.getElementById("app") as HTMLCanvasElement;
 const status = document.getElementById("status") as HTMLDivElement;
@@ -18,6 +20,18 @@ async function main(): Promise<void> {
     resizeCanvas(canvas);
 
     const scene = new GridScene(gpu, GRID_WIDTH, GRID_HEIGHT);
+
+    // M1: rasterise a real tessellation on the CPU and upload it. The compute
+    // simulation will take over this buffer in M3.
+    const halfW = Math.floor(GRID_WIDTH / 2);
+    const halfH = Math.floor(GRID_HEIGHT / 2);
+    const raster = rasterize(L_TROMINO_BRICK, {
+      minX: -halfW,
+      minY: -halfH,
+      maxX: -halfW + GRID_WIDTH - 1,
+      maxY: -halfH + GRID_HEIGHT - 1,
+    });
+    scene.setCells(raster.cells);
 
     const start = performance.now();
     let frameIndex = 0;
