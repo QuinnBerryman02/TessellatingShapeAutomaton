@@ -51,6 +51,7 @@ try {
   });
 
   const page = await browser.newPage();
+  await page.setViewport({ width: 1200, height: 800 });
 
   const consoleErrors = [];
   const pageErrors = [];
@@ -78,7 +79,33 @@ try {
 
   const diag = await page.evaluate(() => window.__tsaDiag ?? null);
 
+  // Exercise the Lab: draw an L-tromino, find its tilings, save one.
+  const lab = await page.evaluate(() => {
+    const api = window.__tsaLab;
+    if (!api) return { error: "window.__tsaLab is missing" };
+    api.setShape([
+      [0, 0],
+      [1, 0],
+      [0, 1],
+    ]);
+    const count = api.find();
+    if (count > 0) {
+      api.select(0);
+      api.save();
+    }
+    return {
+      count,
+      collection: api.collectionSize(),
+      info: document.getElementById("view-info")?.textContent ?? "",
+    };
+  });
+
+  if (process.env.SHOT) {
+    await page.screenshot({ path: process.env.SHOT });
+  }
+
   console.log("diagnostics:", JSON.stringify(diag, null, 2));
+  console.log("lab:", JSON.stringify(lab));
 
   const problems = [];
   if (!diag) {
@@ -92,6 +119,12 @@ try {
       problems.push("no frames finished on the GPU");
     }
   }
+  if (lab.error) {
+    problems.push(`LAB: ${lab.error}`);
+  } else {
+    if (!(lab.count > 0)) problems.push("lab found no tilings for the L-tromino");
+    if (!(lab.collection > 0)) problems.push("lab did not save a discovery");
+  }
   for (const e of pageErrors) problems.push(`PAGEERROR: ${e}`);
   for (const e of httpErrors) problems.push(`HTTP: ${e}`);
   for (const e of consoleErrors) problems.push(`CONSOLE.ERROR: ${e}`);
@@ -102,7 +135,7 @@ try {
     exitCode = 1;
   } else {
     console.log(
-      `\n✓ WebGPU up, shaders clean, ${diag.renderedFrames} frame(s) rendered.`,
+      `\n✓ WebGPU up, shaders clean, ${diag.renderedFrames} frame(s) rendered, lab found ${lab.count} tiling(s).`,
     );
   }
 } catch (error) {

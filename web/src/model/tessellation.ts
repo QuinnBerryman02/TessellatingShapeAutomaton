@@ -1,5 +1,5 @@
 import { applyD4, composeD4, type D4 } from "../core/d4.ts";
-import { addVec, scaleVec, type Vec2 } from "../core/vec2.ts";
+import { addVec, manhattan, scaleVec, type Vec2 } from "../core/vec2.ts";
 import { transformedCells, type ShapeDef } from "./shape.ts";
 
 /**
@@ -40,8 +40,17 @@ export interface Raster {
   readonly minY: number;
   readonly width: number;
   readonly height: number;
-  /** One entry per cell: 0 = empty, otherwise orientation + 1. */
+  /**
+   * One entry per cell: 0 = empty, otherwise orientation + 1. With
+   * {@link RasterOptions.shadeTiles} an extra bit alternates tile instances,
+   * so a single-orientation tiling is still visible.
+   */
   readonly cells: Uint32Array;
+}
+
+export interface RasterOptions {
+  /** Alternate the shade of neighbouring tile instances (by lattice parity). */
+  readonly shadeTiles?: boolean;
 }
 
 /** Area of the fundamental cell of the lattice. */
@@ -49,6 +58,36 @@ export function covolume(def: TessellationDef): number {
   return Math.abs(
     def.basis1.x * def.basis2.y - def.basis1.y * def.basis2.x,
   );
+}
+
+function isBetterRep(candidate: Vec2, best: Vec2): boolean {
+  const dc = manhattan(candidate);
+  const db = manhattan(best);
+  if (dc !== db) return dc < db;
+  if (candidate.x !== best.x) return candidate.x < best.x;
+  return candidate.y < best.y;
+}
+
+/**
+ * Canonical, small integer representative of `u` modulo the lattice: the
+ * translate with the smallest Manhattan distance from the origin (ties broken
+ * by x then y). Consistent, so equal cosets reduce to equal vectors.
+ */
+export function reduceModLattice(u: Vec2, basis1: Vec2, basis2: Vec2): Vec2 {
+  const { t1, t2 } = latticeCoords(u, basis1, basis2);
+  const m0 = Math.floor(t1);
+  const n0 = Math.floor(t2);
+  let best: Vec2 | undefined;
+  for (let m = m0 - 1; m <= m0 + 1; m++) {
+    for (let n = n0 - 1; n <= n0 + 1; n++) {
+      const candidate = addVec(
+        u,
+        addVec(scaleVec(basis1, -m), scaleVec(basis2, -n)),
+      );
+      if (best === undefined || isBetterRep(candidate, best)) best = candidate;
+    }
+  }
+  return best as Vec2;
 }
 
 /**
@@ -90,7 +129,11 @@ export function transformTessellation(
  * a collision, but a valid tessellation has no collisions, so every cell is
  * covered exactly once.
  */
-export function rasterize(def: TessellationDef, region: Region): Raster {
+export function rasterize(
+  def: TessellationDef,
+  region: Region,
+  options: RasterOptions = {},
+): Raster {
   const width = region.maxX - region.minX + 1;
   const height = region.maxY - region.minY + 1;
   const cells = new Uint32Array(width * height);
@@ -148,8 +191,9 @@ export function rasterize(def: TessellationDef, region: Region): Raster {
           ) {
             continue;
           }
+          const shade = options.shadeTiles ? (m + n) & 1 : 0;
           cells[(p.y - region.minY) * width + (p.x - region.minX)] =
-            placement.orientation + 1;
+            placement.orientation + 1 + 8 * shade;
         }
       }
     }

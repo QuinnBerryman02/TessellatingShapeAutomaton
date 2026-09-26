@@ -30,10 +30,13 @@ export class GridScene {
   private readonly paramsU32: Uint32Array;
 
   /**
-   * When true the compute kernel rewrites the grid every frame. Off in M1,
+   * When true the compute kernel rewrites the grid every frame. Off in M1/M2,
    * where the CPU uploads a static tessellation; the growth sim turns it on.
    */
   simEnabled = false;
+
+  /** Magnification of the world grid. 4 shows about a quarter of the width. */
+  zoom = 4;
 
   constructor(gpu: GpuContext, width: number, height: number) {
     this.device = gpu.device;
@@ -110,6 +113,10 @@ export class GridScene {
     });
   }
 
+  setZoom(zoom: number): void {
+    this.zoom = Math.max(0.25, zoom);
+  }
+
   /** Uploads one u32 per cell (see `model/tessellation.ts` raster format). */
   setCells(cells: Uint32Array): void {
     if (cells.length !== this.width * this.height) {
@@ -174,6 +181,7 @@ export class GridScene {
     this.paramsF32[2] = timeSeconds;
     this.paramsF32[3] = scaleX;
     this.paramsF32[4] = scaleY;
+    this.paramsF32[5] = this.zoom;
 
     this.device.queue.writeBuffer(this.paramsBuffer, 0, this.paramsData);
   }

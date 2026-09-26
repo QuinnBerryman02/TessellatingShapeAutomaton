@@ -1,5 +1,6 @@
 // Draws the world grid (a storage buffer of packed cell ids) to the canvas.
-// Cell 0 is empty; values 1..8 index a palette keyed by tile orientation (M1).
+// Cell 0 is empty; values 1..16 index a palette: the low 3 bits are the tile
+// orientation, the high bit alternates neighbouring tile instances.
 
 struct Params {
   width: u32,
@@ -7,7 +8,7 @@ struct Params {
   time: f32,
   scaleX: f32,
   scaleY: f32,
-  pad0: f32,
+  zoom: f32,
   pad1: f32,
   pad2: f32,
 };
@@ -37,8 +38,8 @@ fn vs(@builtin(vertex_index) vi: u32) -> VSOut {
 
 @fragment
 fn fs(in: VSOut) -> @location(0) vec4<f32> {
-  // Fit the grid inside the viewport without stretching (letterbox).
-  let s = vec2<f32>(params.scaleX, params.scaleY);
+  // Fit the grid inside the viewport without stretching (letterbox), then zoom.
+  let s = vec2<f32>(params.scaleX, params.scaleY) * params.zoom;
   let uv = (in.uv - vec2<f32>(0.5, 0.5)) / s + vec2<f32>(0.5, 0.5);
   if (uv.x < 0.0 || uv.x >= 1.0 || uv.y < 0.0 || uv.y >= 1.0) {
     return vec4<f32>(0.02, 0.03, 0.05, 1.0);
@@ -51,15 +52,23 @@ fn fs(in: VSOut) -> @location(0) vec4<f32> {
     return vec4<f32>(0.06, 0.07, 0.10, 1.0);
   }
 
-  var palette = array<vec4<f32>, 8>(
+  var palette = array<vec4<f32>, 16>(
     vec4<f32>(0.20, 0.80, 0.90, 1.0),
     vec4<f32>(0.90, 0.40, 0.80, 1.0),
     vec4<f32>(0.50, 0.90, 0.40, 1.0),
     vec4<f32>(0.95, 0.80, 0.30, 1.0),
-    vec4<f32>(0.35, 0.55, 0.95, 1.0),
+    vec4<f32>(0.35, 0.55, 0.90, 1.0),
     vec4<f32>(0.95, 0.45, 0.40, 1.0),
     vec4<f32>(0.65, 0.45, 0.95, 1.0),
     vec4<f32>(0.55, 0.90, 0.75, 1.0),
+    vec4<f32>(0.11, 0.44, 0.50, 1.0),
+    vec4<f32>(0.50, 0.22, 0.44, 1.0),
+    vec4<f32>(0.27, 0.50, 0.22, 1.0),
+    vec4<f32>(0.52, 0.44, 0.16, 1.0),
+    vec4<f32>(0.19, 0.30, 0.50, 1.0),
+    vec4<f32>(0.52, 0.25, 0.22, 1.0),
+    vec4<f32>(0.36, 0.25, 0.52, 1.0),
+    vec4<f32>(0.30, 0.50, 0.41, 1.0),
   );
-  return palette[(v - 1u) % 8u];
+  return palette[(v - 1u) % 16u];
 }

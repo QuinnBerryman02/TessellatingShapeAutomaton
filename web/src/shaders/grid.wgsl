@@ -10,7 +10,7 @@ struct Params {
   time: f32,
   scaleX: f32,
   scaleY: f32,
-  pad0: f32,
+  zoom: f32,
   pad1: f32,
   pad2: f32,
 };

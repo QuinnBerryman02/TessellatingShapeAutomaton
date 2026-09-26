@@ -244,3 +244,11 @@ validator is trusted.
   and the L-tromino brick rasterised from the model and rendered in place of the
   placeholder pattern. Open follow-ups: a general lattice canonical form, and a
   richer multi-orientation example once the enumerator exists.
+- **M2 — done (Lab v1).** `solver/find.ts` searches lattices (compact first)
+  for exact tilings of a drawn shape using exact cover; `lab/labPanel.ts` adds
+  the draw grid, live previews, selection, and export/import;
+  `lab/collection.ts` persists discoveries (keyed by canonical signature) in
+  localStorage. The headless smoke test drives the Lab (`window.__tsaLab`) and
+  asserts it finds and saves a tiling. The world view gained zoom and
+  lattice-parity shading. Follow-ups: naming/renaming discoveries, categories,
+  and a Web Worker so larger searches stay off the main thread.

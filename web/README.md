@@ -52,6 +52,10 @@ src/
   solver/
     validate.ts       exact-tiling validator
     canonical.ts      symmetry/translation-invariant signature
+    find.ts           search for lattice tilings of a drawn shape
+  lab/
+    collection.ts     saved discoveries (localStorage + JSON)
+    labPanel.ts       draw grid, finder UI, results and collection
   gpu/
     device.ts         adapter/device/context setup + canvas resize
     gridScene.ts      world-grid buffer, compute + render passes, setCells()
@@ -90,8 +94,23 @@ Known limitation: canonicalisation reduces placements modulo the lattice, so it
 is exact for the reduced bases used so far but is not yet a general lattice
 canonical form.
 
+## Lab (M2)
+
+`LabPanel` is the discovery loop. Draw a tile on the 14×14 grid and
+`findTessellations` searches small lattices for exact tilings of that shape,
+reporting compact ones first. Results appear as live previews; clicking one
+renders it in the main view. Discoveries are stored in `Collection`
+(localStorage) keyed by the canonical signature, and export/import as JSON.
+
+The finder orders lattices by covolume, works modulo the lattice, and solves an
+exact cover of the residue cells with tile placements (backtracking). Every
+solution is re-validated and canonicalised before it is shown.
+
+The world view has a `zoom` uniform (`GridScene.setZoom`) and shades tiles by
+lattice parity, so even single-orientation tilings are legible.
+
 Next: `sim/` (growth/claim/cut, fixed timestep) and a first `game/` skirmish
-loop — the M2/M3 work in `plans/phase1.md`.
+loop — the M3/M4 work in `plans/phase1.md`.
 
 ## Notes
 
