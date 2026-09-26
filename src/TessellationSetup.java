@@ -344,7 +344,7 @@ public class TessellationSetup {
         }
         
         public AbsoluteRule getAbsoluteRule(Permutation shapePerm, Permutation planePerm) {
-            return new AbsoluteRule(code, D4.apply(shapePerm, planePerm), getAbsoluteCenter(shapePerm, planePerm));
+            return new AbsoluteRule(code, D4.apply(planePerm, shapePerm), getAbsoluteCenter(shapePerm, planePerm));
         }
     
         public RelativeRule getRelativeRule(Permutation shapePerm) {
@@ -479,7 +479,7 @@ class RelativeRule extends PositionRule {
     }
 
     public RelativeRule transform(Permutation permutation) {
-        return new RelativeRule(declaringCode, D4.apply(this.permutation, permutation), point.transform(permutation));
+        return new RelativeRule(declaringCode, D4.apply(permutation, this.permutation), point.transform(permutation));
     }
 }
 
