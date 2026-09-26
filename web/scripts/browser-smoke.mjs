@@ -1,0 +1,125 @@
+// Boots the built app in headless Brave, drives a few frames, and fails if the
+// GPU device, shaders, console, or frame loop had any problem.
+//
+//   npm run build && npm run smoke:browser
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import puppeteer from "puppeteer-core";
+import { preview } from "vite";
+import { findBrowser } from "./browser-path.mjs";
+
+const ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
+// Random high port so a stray leftover server can't block the run.
+const PORT = Number(process.env.PORT ?? 5300 + Math.floor(Math.random() * 400));
+const APP_URL = `http://localhost:${PORT}/`;
+
+const browserPath = findBrowser();
+if (!browserPath) {
+  console.error(
+    "No Chromium/Chrome/Edge/Brave found. Set BROWSER_PATH to the executable.",
+  );
+  process.exit(2);
+}
+
+let server;
+let browser;
+let profile;
+let exitCode = 0;
+
+try {
+  server = await preview({
+    root: ROOT,
+    preview: { port: PORT, strictPort: true },
+  });
+
+  profile = await mkdtemp(join(tmpdir(), "tsa-smoke-"));
+  browser = await puppeteer.launch({
+    executablePath: browserPath,
+    headless: true,
+    pipe: true,
+    timeout: 60000,
+    userDataDir: profile,
+    args: [
+      "--enable-unsafe-webgpu",
+      "--enable-unsafe-swiftshader",
+      "--no-sandbox",
+      "--no-first-run",
+      "--no-default-browser-check",
+    ],
+  });
+
+  const page = await browser.newPage();
+
+  const consoleErrors = [];
+  const pageErrors = [];
+  const httpErrors = [];
+  page.on("console", (m) => {
+    if (m.type() === "error" && !/favicon/i.test(m.text())) {
+      consoleErrors.push(m.text());
+    }
+  });
+  page.on("pageerror", (e) => pageErrors.push(e.message));
+  page.on("response", (r) => {
+    if (r.status() >= 400 && !r.url().endsWith("/favicon.ico")) {
+      httpErrors.push(`${r.status()} ${r.url()}`);
+    }
+  });
+
+  await page.goto(APP_URL, { waitUntil: "load" });
+  await page
+    .waitForFunction("window.__tsaDiag && window.__tsaDiag.device === true", {
+      timeout: 20000,
+    })
+    .catch(() => {});
+  // Let the render loop produce a few frames and flush async GPU errors.
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  const diag = await page.evaluate(() => window.__tsaDiag ?? null);
+
+  console.log("diagnostics:", JSON.stringify(diag, null, 2));
+
+  const problems = [];
+  if (!diag) {
+    problems.push("window.__tsaDiag was never exposed");
+  } else {
+    if (!diag.supported) problems.push("navigator.gpu is missing");
+    if (!diag.device) problems.push("no WebGPU device was created");
+    for (const e of diag.gpuErrors ?? []) problems.push(`GPU: ${e}`);
+    for (const e of diag.errors ?? []) problems.push(`PAGE: ${e}`);
+    if (!(diag.renderedFrames > 0)) {
+      problems.push("no frames finished on the GPU");
+    }
+  }
+  for (const e of pageErrors) problems.push(`PAGEERROR: ${e}`);
+  for (const e of httpErrors) problems.push(`HTTP: ${e}`);
+  for (const e of consoleErrors) problems.push(`CONSOLE.ERROR: ${e}`);
+
+  if (problems.length) {
+    console.error("\n✗ smoke failed:");
+    for (const p of problems) console.error(`   - ${p}`);
+    exitCode = 1;
+  } else {
+    console.log(
+      `\n✓ WebGPU up, shaders clean, ${diag.renderedFrames} frame(s) rendered.`,
+    );
+  }
+} catch (error) {
+  console.error(error);
+  exitCode = 1;
+} finally {
+  try {
+    await browser?.close();
+  } catch {
+    /* ignore */
+  }
+  try {
+    await server?.close();
+  } catch {
+    /* ignore */
+  }
+  if (profile) await rm(profile, { recursive: true, force: true }).catch(() => {});
+}
+
+process.exit(exitCode);

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <title>Tessellating Shape Automaton</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #05070a;
+        overflow: hidden;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      #app {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      #status {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #9fb3c8;
+        padding: 2rem;
+        text-align: center;
+        font-size: 14px;
+        line-height: 1.6;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="app"></canvas>
+    <div id="status">initialising WebGPU&hellip;</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
