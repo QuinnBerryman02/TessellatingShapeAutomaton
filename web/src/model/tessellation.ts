@@ -1,3 +1,4 @@
+import { OWNER_LAB, packCell } from "../core/cell.ts";
 import { applyD4, composeD4, type D4 } from "../core/d4.ts";
 import { addVec, manhattan, scaleVec, type Vec2 } from "../core/vec2.ts";
 import { transformedCells, type ShapeDef } from "./shape.ts";
@@ -41,9 +42,9 @@ export interface Raster {
   readonly width: number;
   readonly height: number;
   /**
-   * One entry per cell: 0 = empty, otherwise orientation + 1. With
-   * {@link RasterOptions.shadeTiles} an extra bit alternates tile instances,
-   * so a single-orientation tiling is still visible.
+   * One packed cell per entry (see `core/cell.ts`): owner, orientation, and an
+   * optional shade bit. 0 means empty; by default cells are `OWNER_LAB` so the
+   * renderer draws them with the orientation palette.
    */
   readonly cells: Uint32Array;
 }
@@ -51,6 +52,8 @@ export interface Raster {
 export interface RasterOptions {
   /** Alternate the shade of neighbouring tile instances (by lattice parity). */
   readonly shadeTiles?: boolean;
+  /** Owner id stamped into every non-empty cell (default `OWNER_LAB`). */
+  readonly owner?: number;
 }
 
 /** Area of the fundamental cell of the lattice. */
@@ -137,6 +140,7 @@ export function rasterize(
   const width = region.maxX - region.minX + 1;
   const height = region.maxY - region.minY + 1;
   const cells = new Uint32Array(width * height);
+  const owner = options.owner ?? OWNER_LAB;
   const tiles = def.placements.map((p) =>
     transformedCells(def.shape, p.orientation),
   );
@@ -192,8 +196,11 @@ export function rasterize(
             continue;
           }
           const shade = options.shadeTiles ? (m + n) & 1 : 0;
-          cells[(p.y - region.minY) * width + (p.x - region.minX)] =
-            placement.orientation + 1 + 8 * shade;
+          cells[(p.y - region.minY) * width + (p.x - region.minX)] = packCell({
+            owner,
+            orientation: placement.orientation,
+            shade,
+          });
         }
       }
     }

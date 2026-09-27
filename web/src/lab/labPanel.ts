@@ -1,5 +1,6 @@
 import type { Vec2 } from "../core/vec2.ts";
 import type { ShapeDef } from "../model/shape.ts";
+import { paletteIndex } from "../core/cell.ts";
 import { covolume, rasterize, type TessellationDef } from "../model/tessellation.ts";
 import { canonicalSignature } from "../solver/canonical.ts";
 import { findTessellations } from "../solver/find.ts";
@@ -395,7 +396,7 @@ function renderPreview(canvas: HTMLCanvasElement, def: TessellationDef): void {
     for (let x = 0; x < raster.width; x++) {
       const value = raster.cells[y * raster.width + x];
       if (value === 0) continue;
-      ctx.fillStyle = PREVIEW_PALETTE[(value - 1) % PREVIEW_PALETTE.length];
+      ctx.fillStyle = PREVIEW_PALETTE[paletteIndex(value) % PREVIEW_PALETTE.length];
       ctx.fillRect(x * cellSize, y * cellSize, Math.ceil(cellSize), Math.ceil(cellSize));
     }
   }

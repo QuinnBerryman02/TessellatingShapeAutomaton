@@ -45,6 +45,7 @@ src/
   core/
     vec2.ts           integer vector helpers
     d4.ts             the 8 square symmetries (transforms + group table)
+    cell.ts           packed u32 world-cell format (pack/unpack helpers)
   model/
     shape.ts          ShapeDef (a tile's cells)
     tessellation.ts   TessellationDef, lattice maths, rasteriser, JSON
@@ -56,12 +57,16 @@ src/
   lab/
     collection.ts     saved discoveries (localStorage + JSON)
     labPanel.ts       draw grid, finder UI, results and collection
+  sim/
+    world.ts          WorldGrid: packed cells, bounds, ownership counts
+    grow.ts           GrowPattern: tile instances + adjacency for growth
+    battle.ts         Expander + Battle: growth/claim/destroy tick loop
   gpu/
     device.ts         adapter/device/context setup + canvas resize
     gridScene.ts      world-grid buffer, compute + render passes, setCells()
   shaders/
-    grid.wgsl         per-cell update kernel (placeholder; the sim takes over in M3)
-    render.wgsl       draws the grid (palette keyed by tile orientation)
+    grid.wgsl         per-cell update kernel (placeholder; the sim is CPU for now)
+    render.wgsl       draws the grid (owner/orientation palette; core highlight)
 scripts/
   verify-wgsl.mjs     headless shader compile check
   browser-smoke.mjs   headless end-to-end run + console capture
@@ -74,10 +79,18 @@ CPU unit tests live next to their modules as `*.test.ts` and run under Node's
 ## Current contract
 
 The world is one `u32` per cell in a storage buffer, indexed `y * width + x`.
-`render.wgsl` reads it; a labelled cell holds `orientation + 1` (0 = unowned).
-In M1 the CPU rasterises a `TessellationDef` and uploads it with
-`GridScene.setCells`; the compute kernel (behind `simEnabled`) takes the buffer
-back over in M3.
+The CPU simulates it and uploads it with `GridScene.setCells`; `render.wgsl`
+reads it. The bit layout lives in `core/cell.ts`:
+
+```
+bits  0..7   owner         (0 empty, 1 Lab, 2/3 players)
+bits  8..10  orientation   (D4 index, for shading a tile)
+bit   11     shade         (alternates neighbouring tile instances)
+bits 12..15  role          (1 = core)
+bits 16..31  reserved      (integrity / age)
+```
+
+Keep it `u32` per cell so the sim can grow into more fields without a rewrite.
 
 ## Model & solver (M1)
 
@@ -109,12 +122,29 @@ solution is re-validated and canonicalised before it is shown.
 The world view has a `zoom` uniform (`GridScene.setZoom`) and shades tiles by
 lattice parity, so even single-orientation tilings are legible.
 
-Next: `sim/` (growth/claim/cut, fixed timestep) and a first `game/` skirmish
-loop — the M3/M4 work in `plans/phase1.md`.
+## Simulation (M3)
+
+`sim/` is the deterministic battle core, independent of rendering.
+
+- A `GrowPattern` derives a tessellation's **tile-instance adjacency graph**: two
+  instances touch when any of their cells are edge-adjacent. Because the tiling
+  is periodic, one precomputed rule set covers every instance.
+- An `Expander` floods that graph one tile layer per tick from a seed core. The
+  frontier is ordered by distance then a canonical key, so the same battle always
+  plays out the same way.
+- Every tick, all participants submit their claims and `Battle` resolves them
+  **together**: a lone claim takes the cell (destroying the previous owner), but
+  a cell claimed by several at once is **razed**. That makes the front a
+  symmetric no-man's-land instead of rewarding whoever moved last.
+
+Growth is CPU-side for now (still ~10k cells in 60 ticks, fast enough); a GPU
+compute path is the M7 batch work. The `Battle`/`Expander` classes are pure TS,
+so the tick loop is unit-tested under `node --test`.
+
+Next: `game/` skirmish state machine, a camera, a HUD, and a basic AI — the M4
+work in `plans/phase1.md`.
 
 ## Notes
 
-- Packed cell format (owner, type, hp, age) is not decided yet. Keep the buffer
-  `u32` per cell so it can grow into that.
 - Rendering the whole grid via a storage buffer scales to millions of cells;
   instanced shape rendering can come later for crisp tile art.

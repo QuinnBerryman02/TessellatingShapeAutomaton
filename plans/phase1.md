@@ -139,14 +139,16 @@ web/src/
 ### 4.3 The world contract (keep stable)
 
 The world is one `u32` per cell in a storage buffer, indexed `y * width + x`.
-`grid.wgsl` writes it and `render.wgsl` reads it. Proposed bit layout (to be
-finalised in M3):
+`grid.wgsl` writes it and `render.wgsl` reads it. Finalised bit layout (M3,
+see `web/src/core/cell.ts`):
 
 ```
-bits  0..7   owner id        (0 = unowned)
-bits  8..15  cell role/type
-bits 16..23  integrity / hp
-bits 24..31  age / growth state
+bits  0..7   owner id        (0 = unowned, 1 = Lab, 2/3 = players)
+bits  8..10  orientation     (D4 index, for tile shading)
+bit   11     shade           (alternates neighbouring tile instances)
+bits 12..15  role            (1 = core)
+bits 16..23  integrity / hp  (reserved)
+bits 24..31  age / growth    (reserved)
 ```
 
 Keep the buffer `u32`-per-cell so it can grow into this without a rewrite.
@@ -203,8 +205,8 @@ validator is trusted.
   of the placeholder pattern.
 - **M2 — Lab v1.** Click to add/remove cells, live validity feedback, save/load
   discoveries as JSON, a simple collection list.
-- **M3 — Simulation core.** Packed cell format, growth/claim/destroy tick loop,
-  determinism + tests. Two hardcoded tessellations fighting on a field.
+- **M3 — Simulation core.** ✅ Packed cell format, growth/claim/destroy tick
+  loop, determinism + tests. Two hardcoded tessellations fighting on a field.
 - **M4 — Skirmish v1.** Camera, HUD (energy, extent), win/lose conditions, a
   basic AI opponent.
 - **M5 — Lab collection.** Categories, discovery tracking, using collected
@@ -252,3 +254,12 @@ validator is trusted.
   asserts it finds and saves a tiling. The world view gained zoom and
   lattice-parity shading. Follow-ups: naming/renaming discoveries, categories,
   and a Web Worker so larger searches stay off the main thread.
+- **M3 — done (simulation core).** `core/cell.ts` finalises the packed `u32`
+  world format. `sim/world.ts` wraps the buffer; `sim/grow.ts` derives each
+  tessellation's tile-instance adjacency graph; `sim/battle.ts` floods it one
+  tile layer per tick and resolves all claims simultaneously (lone claims take
+  the cell, simultaneous claims raze it). Growth is deterministic and covered by
+  unit tests; the headless smoke test runs two tessellations for 60 ticks twice
+  and asserts identical results and a contested front. The app gained a
+  **Battle** mode (CPU sim uploaded each tick). Follow-ups from the design doc:
+  energy budgets, max extent, and the anti-snowball severing mechanic.

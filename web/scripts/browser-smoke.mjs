@@ -100,12 +100,38 @@ try {
     };
   });
 
+  // Exercise the battle sim: run it twice from the same seed and confirm the
+  // result is identical (determinism) while both sides gain ground and clash.
+  const battle = await page.evaluate(async () => {
+    const api = window.__tsaBattle;
+    if (!api) return { error: "window.__tsaBattle is missing" };
+    api.setMode("battle");
+    api.pause();
+    const runOnce = () => {
+      api.reset();
+      api.run(60);
+      return {
+        snapshots: api.snapshots(),
+        contested: api.contested(),
+        tick: api.tickCount(),
+      };
+    };
+    const first = runOnce();
+    const second = runOnce();
+    return {
+      first,
+      second,
+      deterministic: JSON.stringify(first) === JSON.stringify(second),
+    };
+  });
+
   if (process.env.SHOT) {
     await page.screenshot({ path: process.env.SHOT });
   }
 
   console.log("diagnostics:", JSON.stringify(diag, null, 2));
   console.log("lab:", JSON.stringify(lab));
+  console.log("battle:", JSON.stringify(battle));
 
   const problems = [];
   if (!diag) {
@@ -125,6 +151,23 @@ try {
     if (!(lab.count > 0)) problems.push("lab found no tilings for the L-tromino");
     if (!(lab.collection > 0)) problems.push("lab did not save a discovery");
   }
+  if (battle.error) {
+    problems.push(`BATTLE: ${battle.error}`);
+  } else {
+    const snaps = battle.first?.snapshots ?? [];
+    if (snaps.length !== 2) {
+      problems.push(`battle expected 2 participants, got ${snaps.length}`);
+    } else {
+      if (!(snaps[0].cells > 0)) problems.push("battle: player A claimed nothing");
+      if (!(snaps[1].cells > 0)) problems.push("battle: player B claimed nothing");
+    }
+    if (!(battle.first?.contested > 0)) {
+      problems.push("battle: the two patterns never clashed");
+    }
+    if (!battle.deterministic) {
+      problems.push("battle: two identical runs diverged");
+    }
+  }
   for (const e of pageErrors) problems.push(`PAGEERROR: ${e}`);
   for (const e of httpErrors) problems.push(`HTTP: ${e}`);
   for (const e of consoleErrors) problems.push(`CONSOLE.ERROR: ${e}`);
@@ -134,8 +177,12 @@ try {
     for (const p of problems) console.error(`   - ${p}`);
     exitCode = 1;
   } else {
+    const snaps = battle.first?.snapshots ?? [];
     console.log(
-      `\n✓ WebGPU up, shaders clean, ${diag.renderedFrames} frame(s) rendered, lab found ${lab.count} tiling(s).`,
+      `\n✓ WebGPU up, shaders clean, ${diag.renderedFrames} frame(s) rendered, ` +
+        `lab found ${lab.count} tiling(s), battle ran ${battle.first?.tick ?? 0} ticks ` +
+        `(${snaps.map((s) => `${s.name} ${s.cells}`).join(", ")}; ` +
+        `${battle.first?.contested ?? 0} contested).`,
     );
   }
 } catch (error) {

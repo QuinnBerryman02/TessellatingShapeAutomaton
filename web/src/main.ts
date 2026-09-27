@@ -1,19 +1,25 @@
+import { OWNER_PLAYER_A, OWNER_PLAYER_B } from "./core/cell.ts";
 import { diag, installDiagnostics, publishDiagnostics } from "./diag.ts";
 import { initGpu, resizeCanvas } from "./gpu/device.ts";
 import { GridScene } from "./gpu/gridScene.ts";
 import { LabPanel } from "./lab/labPanel.ts";
-import { L_TROMINO_BRICK } from "./model/builtins.ts";
+import { L_TROMINO_BRICK, UNIT_SQUARE } from "./model/builtins.ts";
 import { rasterize, type TessellationDef } from "./model/tessellation.ts";
+import { Battle } from "./sim/battle.ts";
 
 const canvas = document.getElementById("app") as HTMLCanvasElement;
 const status = document.getElementById("status") as HTMLDivElement;
 const labRoot = document.getElementById("lab") as HTMLElement;
 const modeLab = document.getElementById("mode-lab") as HTMLButtonElement;
+const modeBattle = document.getElementById("mode-battle") as HTMLButtonElement;
 const modeView = document.getElementById("mode-view") as HTMLButtonElement;
 const viewInfo = document.getElementById("view-info") as HTMLSpanElement;
 
 const GRID_WIDTH = 256;
 const GRID_HEIGHT = 256;
+const BATTLE_TICK_MS = 90;
+
+type Mode = "lab" | "battle" | "view";
 
 async function main(): Promise<void> {
   installDiagnostics();
@@ -28,7 +34,9 @@ async function main(): Promise<void> {
     const halfW = Math.floor(GRID_WIDTH / 2);
     const halfH = Math.floor(GRID_HEIGHT / 2);
 
+    let selected: TessellationDef = L_TROMINO_BRICK;
     const showTessellation = (def: TessellationDef): void => {
+      selected = def;
       const raster = rasterize(
         def,
         {
@@ -43,10 +51,61 @@ async function main(): Promise<void> {
       viewInfo.textContent = `${def.placements.length} placement(s) · ${def.shape.cells.length}-cell tile`;
     };
 
+    const battle = new Battle({
+      width: GRID_WIDTH,
+      height: GRID_HEIGHT,
+      participants: [
+        {
+          name: "brick",
+          owner: OWNER_PLAYER_A,
+          def: L_TROMINO_BRICK,
+          seed: { x: 104, y: 128 },
+          maxRadius: 70,
+        },
+        {
+          name: "square",
+          owner: OWNER_PLAYER_B,
+          def: UNIT_SQUARE,
+          seed: { x: 152, y: 128 },
+          ringsPerTick: 2,
+          maxRadius: 70,
+        },
+      ],
+    });
+
+    const uploadBattle = (): void => scene.setCells(battle.world.cells);
+    const battleInfo = (): string => {
+      const parts = battle.snapshots().map((s) => `${s.name} ${s.cells}`);
+      return `${parts.join(" · ")} · tick ${battle.tickCount}`;
+    };
+
+    let mode: Mode = "lab";
+    let battlePaused = false;
+    const setMode = (next: Mode): void => {
+      mode = next;
+      labRoot.hidden = next !== "lab";
+      modeLab.classList.toggle("active", next === "lab");
+      modeBattle.classList.toggle("active", next === "battle");
+      modeView.classList.toggle("active", next === "view");
+      if (next === "battle") {
+        scene.setZoom(1);
+        uploadBattle();
+        viewInfo.textContent = battleInfo();
+      } else {
+        scene.setZoom(4);
+        if (next === "view") showTessellation(selected);
+      }
+      resizeCanvas(canvas);
+    };
+
+    const lab = new LabPanel({
+      root: labRoot,
+      onSelect: (def) => showTessellation(def),
+    });
+
     showTessellation(L_TROMINO_BRICK);
 
-    const lab = new LabPanel({ root: labRoot, onSelect: showTessellation });
-    // API for scripts/browser-smoke.mjs and manual console poking.
+    // Test API for scripts/browser-smoke.mjs and manual console poking.
     (window as unknown as { __tsaLab: unknown }).__tsaLab = {
       setShape: (cells: [number, number][]) => lab.setShape(cells),
       find: () => lab.find(),
@@ -55,21 +114,55 @@ async function main(): Promise<void> {
       save: () => lab.saveSelected(),
       collectionSize: () => lab.collectionSize(),
     };
-
-    const setMode = (labOn: boolean): void => {
-      labRoot.hidden = !labOn;
-      modeLab.classList.toggle("active", labOn);
-      modeView.classList.toggle("active", !labOn);
-      resizeCanvas(canvas);
+    (window as unknown as { __tsaBattle: unknown }).__tsaBattle = {
+      setMode,
+      pause: () => {
+        battlePaused = true;
+      },
+      resume: () => {
+        battlePaused = false;
+      },
+      reset: () => {
+        battle.reset();
+        if (mode === "battle") uploadBattle();
+      },
+      run: (ticks = 1) => {
+        battle.run(ticks);
+        if (mode === "battle") {
+          uploadBattle();
+          viewInfo.textContent = battleInfo();
+        }
+      },
+      snapshots: () => battle.snapshots(),
+      contested: () => battle.contestedCells,
+      tickCount: () => battle.tickCount,
     };
-    modeLab.addEventListener("click", () => setMode(true));
-    modeView.addEventListener("click", () => setMode(false));
-    setMode(true);
+
+    modeLab.addEventListener("click", () => setMode("lab"));
+    modeBattle.addEventListener("click", () => setMode("battle"));
+    modeView.addEventListener("click", () => setMode("view"));
+    setMode("lab");
 
     const start = performance.now();
     let frameIndex = 0;
+    let last = start;
+    let accumulator = 0;
     const frame = (now: number): void => {
       resizeCanvas(canvas);
+      if (mode === "battle" && !battlePaused) {
+        accumulator += Math.min(250, now - last);
+        let steps = 0;
+        while (accumulator >= BATTLE_TICK_MS && steps < 8) {
+          battle.step();
+          accumulator -= BATTLE_TICK_MS;
+          steps++;
+        }
+        if (steps > 0) {
+          uploadBattle();
+          viewInfo.textContent = battleInfo();
+        }
+      }
+      last = now;
       scene.render((now - start) / 1000);
       if (frameIndex++ % 5 === 0) publishDiagnostics();
       requestAnimationFrame(frame);

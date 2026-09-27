@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { OWNER_LAB, ownerOf } from "../core/cell.ts";
 import { L_TROMINO_BRICK, UNIT_SQUARE } from "./builtins.ts";
 import {
   covolume,
@@ -12,7 +13,7 @@ test("the unit square fills the whole grid", () => {
   const raster = rasterize(UNIT_SQUARE, { minX: -4, minY: -4, maxX: 4, maxY: 4 });
   assert.equal(raster.width, 9);
   assert.equal(raster.height, 9);
-  assert.ok(raster.cells.every((v) => v === 1));
+  assert.ok(raster.cells.every((v) => ownerOf(v) === OWNER_LAB));
 });
 
 test("the L-tromino brick leaves no holes", () => {
