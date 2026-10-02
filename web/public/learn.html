@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <title>Symmetry &amp; Tessellation — a friendly guide</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0f16;
+        --panel: #101722;
+        --panel2: #0c131c;
+        --line: #223044;
+        --ink: #dbe6f2;
+        --dim: #8fa3ba;
+        --accent: #4d9fdc;
+        --accent2: #35d0a5;
+        --warn: #f2a54d;
+        --bad: #ef6b6b;
+        --grid: #172233;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 15px/1.65 system-ui, -apple-system, Segoe UI, sans-serif;
+      }
+      a { color: var(--accent); }
+      header.hero {
+        padding: 42px 20px 26px;
+        text-align: center;
+        background: radial-gradient(1200px 300px at 50% -80px, #16283c, transparent);
+        border-bottom: 1px solid var(--line);
+      }
+      header.hero h1 { margin: 0 0 8px; font-size: 30px; }
+      header.hero p { margin: 0 auto; max-width: 720px; color: var(--dim); }
+      nav {
+        position: sticky; top: 0; z-index: 5;
+        background: rgba(10,15,22,0.92);
+        backdrop-filter: blur(6px);
+        border-bottom: 1px solid var(--line);
+        padding: 8px 14px;
+        display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center;
+        font-size: 13px;
+      }
+      nav a { color: var(--dim); text-decoration: none; }
+      nav a:hover { color: var(--ink); }
+      main { max-width: 940px; margin: 0 auto; padding: 24px 20px 80px; }
+      section { margin: 0 0 44px; scroll-margin-top: 52px; }
+      h2 { font-size: 22px; margin: 34px 0 6px; }
+      h2 .num {
+        display: inline-grid; place-items: center;
+        width: 26px; height: 26px; margin-right: 8px;
+        border-radius: 50%; background: var(--accent); color: #06101c;
+        font-size: 14px; vertical-align: 2px;
+      }
+      h3 { font-size: 16px; margin: 22px 0 4px; }
+      p { margin: 8px 0; }
+      .lead { color: var(--dim); }
+      .card {
+        background: var(--panel); border: 1px solid var(--line);
+        border-radius: 12px; padding: 16px; margin: 14px 0;
+      }
+      .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+      .grow { flex: 1 1 320px; min-width: 260px; }
+      canvas { display: block; border-radius: 8px; background: var(--panel2); touch-action: none; }
+      button {
+        font: inherit; font-size: 13px; color: var(--ink);
+        background: #17202b; border: 1px solid var(--line);
+        border-radius: 7px; padding: 5px 10px; cursor: pointer;
+      }
+      button:hover { background: #1f2b39; }
+      button.active { background: #20404f; border-color: var(--accent); }
+      .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: #17202b; border: 1px solid var(--line); }
+      .ok { color: var(--accent2); }
+      .warn { color: var(--warn); }
+      .bad { color: var(--bad); }
+      .muted { color: var(--dim); }
+      code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em; }
+      .mini-label { font-size: 12px; color: var(--dim); text-align: center; margin-top: 3px; }
+      .grid8 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+      .grid8 .cell { text-align: center; }
+      .grid8 canvas { margin: 0 auto; }
+      table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+      th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
+      th { background: #131c28; color: var(--dim); font-weight: 600; }
+      .tag { font-family: ui-monospace, monospace; color: var(--accent2); }
+      .keybox { border-left: 3px solid var(--accent); padding-left: 12px; margin: 14px 0; color: var(--dim); }
+      .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; color: var(--dim); margin: 6px 0; }
+      .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+      footer { text-align: center; color: var(--dim); font-size: 13px; padding: 20px; border-top: 1px solid var(--line); }
+      .big { font-size: 20px; }
+      .kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <h1>Symmetry &amp; Tessellation</h1>
+      <p>
+        A friendly, hands-on tour of the maths behind the game: what a
+        tessellation is, the symmetries a tile can have, lattices, holohedry,
+        and how a pattern gets its wallpaper-group name.
+      </p>
+    </header>
+
+    <nav>
+      <a href="#what">1 · Tessellations</a>
+      <a href="#d4">2 · D4 (the 8 poses)</a>
+      <a href="#tile">3 · Tile symmetry</a>
+      <a href="#lattice">4 · Lattices</a>
+      <a href="#holo">5 · Holohedry</a>
+      <a href="#tiling">6 · Tiling symmetry</a>
+      <a href="#wallpaper">7 · Wallpaper groups</a>
+      <a href="#valid">8 · Is it a tiling?</a>
+      <a href="#same">9 · Same or different?</a>
+      <a href="#glossary">10 · Glossary</a>
+    </nav>
+
+    <main>
+      <section id="what">
+        <h2><span class="num">1</span>What is a tessellation?</h2>
+        <p class="lead">
+          A <strong>tessellation</strong> (or tiling) is a way of covering the
+          whole flat plane with copies of a shape so that there are
+          <em>no gaps</em> and <em>no overlaps</em>. Think of bathroom tiles.
+        </p>
+        <div class="row">
+          <div class="grow">
+            <p>
+              Our tiles live on the square grid: every tile is a small
+              <strong>polyomino</strong> — a block of grid cells glued together.
+              A valid tiling covers every cell exactly once.
+            </p>
+            <p>
+              The tricky part is that the copies are allowed to be
+              <strong>rotated</strong> or <strong>flipped</strong>, not just
+              slid around. That freedom is what makes finding tilings a puzzle.
+            </p>
+            <div class="row" style="gap:8px">
+              <button id="valid-btn" class="active">Valid</button>
+              <button id="gap-btn">Add a gap</button>
+              <button id="overlap-btn">Add an overlap</button>
+            </div>
+            <p id="valid-text" class="ok" style="margin-top:10px">Every cell covered exactly once. ✅</p>
+          </div>
+          <canvas id="valid-canvas" width="300" height="240"></canvas>
+        </div>
+      </section>
+
+      <section id="d4">
+        <h2><span class="num">2</span>D4 — the eight poses of a square</h2>
+        <p class="lead">
+          Before tiles, think about a single shape. A square has 8 symmetries:
+          ways to move it that land it exactly back on itself. Those 8 moves
+          form a group called <strong>D4</strong>.
+        </p>
+        <div class="row">
+          <div class="grow">
+            <p>They are:</p>
+            <ul>
+              <li><strong>4 rotations</strong>: do nothing (ID), a quarter turn (R90), a half turn (R180), three-quarters (R270).</li>
+              <li><strong>4 reflections</strong>: flip left-right (FX), flip up-down (FY), flip across the two diagonals (TR, TL).</li>
+            </ul>
+            <div class="keybox">
+              A <strong>group</strong> is just a collection of moves where any
+              two moves done one after the other is again a move in the
+              collection, and every move can be undone. D4 has 8 members, so we
+              say its <em>order</em> is 8.
+            </div>
+            <p>
+              Two smaller groups show up a lot: <span class="tag">C4</span>, the
+              4 rotations only, and <span class="tag">C2</span>, just ID and
+              R180.
+            </p>
+          </div>
+          <div class="grow">
+            <div class="grid8" id="d4-figure"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tile">
+        <h2><span class="num">3</span>Symmetry of a tile</h2>
+        <p class="lead">
+          Click cells to draw a tile. We apply all 8 moves from D4 and show the
+          result. Moves that give the <em>same</em> picture (up to just sliding
+          it) are coloured the same — those are the tile's own symmetries.
+        </p>
+        <div class="row">
+          <div class="grow" style="flex:0 1 auto">
+            <canvas id="tile-grid" width="252" height="252" style="cursor:crosshair"></canvas>
+            <div class="mini-label">click to toggle cells</div>
+            <div class="row" style="margin-top:8px" id="tile-presets"></div>
+          </div>
+          <div class="grow">
+            <div class="grid8" id="tile-figure"></div>
+          </div>
+        </div>
+        <div class="card" id="tile-result"></div>
+        <div class="keybox">
+          The set of moves that leave the tile unchanged is called its
+          <strong>symmetry group</strong> (or <em>stabiliser</em>). The number
+          of genuinely different poses is
+          <span class="mono">8 ÷ (size of the symmetry group)</span>. This is
+          the orbit–stabiliser idea: the bigger the symmetry group, the fewer
+          different poses.
+        </div>
+      </section>
+
+      <section id="lattice">
+        <h2><span class="num">4</span>Lattices — the rhythm of the pattern</h2>
+        <p class="lead">
+          When you tile the plane, the copies repeat on a regular grid called a
+          <strong>lattice</strong>. A lattice is built from two arrows,
+          <span class="mono">b1</span> and <span class="mono">b2</span>: every
+          lattice point is a whole-number combination
+          <span class="mono">m·b1 + n·b2</span>.
+        </p>
+        <div class="row">
+          <div class="grow">
+            <p>Pick a lattice:</p>
+            <div class="row" id="lattice-presets" style="gap:8px"></div>
+            <canvas id="lattice-canvas" width="330" height="300" style="margin-top:12px"></canvas>
+            <div class="legend">
+              <span><span class="swatch" style="background:var(--accent)"></span>lattice points</span>
+              <span><span class="swatch" style="background:var(--accent2)"></span>b1 and b2</span>
+            </div>
+          </div>
+          <div class="grow">
+            <h3 style="margin-top:0">A rectangle, or a <em>centred</em> rectangle?</h3>
+            <p id="lattice-desc"></p>
+            <p>
+              The parallelogram spanned by b1 and b2 is the
+              <strong>fundamental cell</strong>. Its area (minus lines) is the
+              <strong>covolume</strong>: how many cells of the plane are in one
+              repeat. A tile's area must divide the covolume to have any chance
+              of tiling.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="holo">
+        <h2><span class="num">5</span>Holohedry — the lattice's own symmetry</h2>
+        <p class="lead">
+          A lattice can look symmetric too. The set of D4 moves that map a
+          lattice onto itself is its <strong>holohedry</strong>. This is a
+          property of the <em>grid of repeating points</em>, not of the tiles
+          sitting on it.
+        </p>
+        <div class="row">
+          <div class="grow">
+            <p>The same chosen lattice, tested against all 8 moves:</p>
+            <div class="grid8" id="holo-figure"></div>
+          </div>
+          <div class="grow">
+            <div class="card" id="holo-result"></div>
+            <p>
+              A square lattice has holohedry <span class="tag">D4</span>. A
+              plain rectangle is only <span class="tag">D2</span>. A
+              <em>centred</em> rectangle — a rectangle with an extra point in
+              its middle — also has <span class="tag">D2</span>, but its sides
+              are not at right angles the way you'd first guess, so we detect it
+              by the holohedry rather than by eyeballing angles.
+            </p>
+            <div class="keybox">
+              A tiling can have <em>less</em> symmetry than its lattice. The
+              lattice's holohedry is the most symmetry it could have; the
+              tiling's point group is what it actually uses.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tiling">
+        <h2><span class="num">6</span>Symmetry of a whole tiling</h2>
+        <p class="lead">
+          Now shrink back out and look at the full pattern. Its symmetries are
+          the moves that leave the <em>entire tiling</em> unchanged.
+        </p>
+        <div class="card">
+          <table>
+            <tr><th>Move</th><th>What it does</th></tr>
+            <tr><td><strong>Translation</strong></td><td>Slides the pattern. The set of slides that work is its translation lattice.</td></tr>
+            <tr><td><strong>Rotation</strong></td><td>Spins the pattern about a point (usually 180° or 90° on our grid).</td></tr>
+            <tr><td><strong>Mirror</strong></td><td>Reflects it across a line; the line is called a mirror line.</td></tr>
+            <tr><td><strong>Glide</strong></td><td>A reflection <em>plus</em> a half-step slide along the line. It looks like a mirror at a glance, but no single line reflects the pattern.</td></tr>
+          </table>
+        </div>
+        <p>
+          The mirror-vs-glide difference is exactly why we have separate names
+          <span class="tag">pm</span> (has a mirror) and
+          <span class="tag">pg</span> (only a glide). To tell them apart we ask:
+          can the reflection be moved onto itself by a slide that cancels its
+          sideways shift? If yes it's a real mirror; if not, it's a glide.
+        </p>
+      </section>
+
+      <section id="wallpaper">
+        <h2><span class="num">7</span>Wallpaper groups</h2>
+        <p class="lead">
+          In total there are exactly <strong>17</strong> ways a pattern can
+          repeat forever — the 17 <strong>wallpaper groups</strong>. On the
+          square grid only <strong>12</strong> of them can appear.
+        </p>
+        <h3>Reading the name</h3>
+        <p>The names are a compact recipe:</p>
+        <ul>
+          <li>The <strong>first letter</strong> is the lattice: <span class="tag">p</span> = primitive (plain), <span class="tag">c</span> = centred (a point in the middle of the cell).</li>
+          <li>The <strong>rest</strong> lists the symmetry in each main direction: <span class="tag">1</span> = none, <span class="tag">2</span> = 180° turn, <span class="tag">4</span> = 90° turn, <span class="tag">m</span> = mirror, <span class="tag">g</span> = glide.</li>
+        </ul>
+        <p>
+          So <span class="tag">pmm</span> = primitive, mirror in direction 1,
+          mirror in direction 2. <span class="tag">pmg</span> = primitive,
+          mirror one way, glide the other. <span class="tag">p4g</span> = the
+          square grid, 4-fold spins, glides along the sides.
+        </p>
+        <div class="card">
+          <table>
+            <tr><th>Name</th><th>Lattice</th><th>Point group</th><th>In plain words</th></tr>
+            <tr><td class="tag">p1</td><td>primitive</td><td>C1</td><td>Only slides. No spins or flips.</td></tr>
+            <tr><td class="tag">p2</td><td>any</td><td>C2</td><td>Half-turns about some points. No flips.</td></tr>
+            <tr><td class="tag">pm</td><td>rectangular</td><td>D1</td><td>Has a mirror line one way.</td></tr>
+            <tr><td class="tag">pg</td><td>rectangular</td><td>D1</td><td>Only a glide — no true mirror.</td></tr>
+            <tr><td class="tag">cm</td><td>centred</td><td>D1</td><td>Mirror line, but on a centred rectangle.</td></tr>
+            <tr><td class="tag">pmm</td><td>rectangular</td><td>D2</td><td>Mirrors both ways, plus half-turns.</td></tr>
+            <tr><td class="tag">pmg</td><td>rectangular</td><td>D2</td><td>Mirror one way, glide the other.</td></tr>
+            <tr><td class="tag">pgg</td><td>rectangular</td><td>D2</td><td>Glides both ways, no mirrors.</td></tr>
+            <tr><td class="tag">cmm</td><td>centred</td><td>D2</td><td>Mirrors both ways, on a centred rectangle.</td></tr>
+            <tr><td class="tag">p4</td><td>square</td><td>C4</td><td>Quarter-turns, but no flips.</td></tr>
+            <tr><td class="tag">p4m</td><td>square</td><td>D4</td><td>Quarter-turns and mirrors. (The square grid itself.)</td></tr>
+            <tr><td class="tag">p4g</td><td>square</td><td>D4</td><td>Quarter-turns with glides; mirrors only on the diagonals.</td></tr>
+          </table>
+        </div>
+        <div class="keybox">
+          <strong>The point group</strong> (like C2 or D4) tells you which
+          rotations and flips are involved; it says nothing about where their
+          centres or mirror lines sit. The full wallpaper group adds that
+          "where" — which is why two patterns can share point group D2 yet be
+          <span class="tag">pmm</span> versus <span class="tag">cmm</span>.
+        </div>
+        <p>
+          Fun fact: the same tile can make different wallpaper groups! Drawing
+          an L-tromino (3 cells) the Lab finds both a
+          <span class="tag">cm</span> and a <span class="tag">cmm</span>
+          tiling, plus <span class="tag">p2</span>, <span class="tag">pg</span>
+          and others.
+        </p>
+      </section>
+
+      <section id="valid">
+        <h2><span class="num">8</span>Is it really a tiling?</h2>
+        <p class="lead">
+          Checking every cell of an infinite plane sounds impossible. Two simple
+          facts make it easy.
+        </p>
+        <div class="card">
+          <ol>
+            <li>
+              <strong>Area check.</strong> One repeat of the pattern (the
+              fundamental cell) contains a fixed number of grid cells. The tile
+              area times the number of copies must equal exactly that number. If
+              not, there must be a gap or an overlap.
+            </li>
+            <li>
+              <strong>Overlap check.</strong> If we also prove that no two
+              copies overlap, then the copies can't leave a gap — because the
+              average coverage already works out to exactly 1 everywhere.
+            </li>
+          </ol>
+        </div>
+        <p>
+          Overlaps are found by comparing each pair of tiles: shift one so their
+          lattice positions line up and see whether any cells coincide. That is
+          fast and exact, so the program never has to look at the whole plane.
+        </p>
+      </section>
+
+      <section id="same">
+        <h2><span class="num">9</span>When are two tilings "the same"?</h2>
+        <p class="lead">
+          If you slide or rotate the whole pattern, you haven't made a new
+          tiling — just described the same one differently. We want to count it
+          once.
+        </p>
+        <div class="row">
+          <div class="grow">
+            <p>Two descriptions are the same tiling when we can:</p>
+            <ul>
+              <li>slide one onto the other, and</li>
+              <li>possibly rotate or flip the whole thing,</li>
+            </ul>
+            <p>so that every tile lands exactly on a tile.</p>
+          </div>
+          <canvas id="same-canvas" width="330" height="200"></canvas>
+        </div>
+        <p>
+          We turn each tiling into a <strong>canonical signature</strong>: a
+          single string computed from the <em>set of tile shapes</em> (their
+          actual cells, not any arbitrary labels). Two tilings are the same
+          exactly when their signatures match. Doing this also quietly fixes
+          two sneaky cases:
+        </p>
+        <ul>
+          <li>a shape that is itself symmetric can be written two ways (the labels differ but the tiles don't);</li>
+          <li>a pattern can be described with a bigger repeating cell than necessary — we shrink it to the <strong>smallest</strong> one first.</li>
+        </ul>
+      </section>
+
+      <section id="glossary">
+        <h2><span class="num">10</span>Glossary</h2>
+        <div class="card">
+          <table>
+            <tr><th>Word</th><th>Meaning</th></tr>
+            <tr><td><strong>Cell</strong></td><td>One little square of the grid.</td></tr>
+            <tr><td><strong>Tile</strong></td><td>A shape made of one or more cells; the repeated piece.</td></tr>
+            <tr><td><strong>Polyomino</strong></td><td>A tile built from connected grid cells.</td></tr>
+            <tr><td><strong>Tessellation / tiling</strong></td><td>A gap-free, overlap-free covering of the plane by copies of a tile.</td></tr>
+            <tr><td><strong>Translation</strong></td><td>A slide with no rotation or flip.</td></tr>
+            <tr><td><strong>Lattice</strong></td><td>All the slides that repeat the pattern, generated by two arrows b1, b2.</td></tr>
+            <tr><td><strong>Basis</strong></td><td>The two arrows b1 and b2 that build a lattice.</td></tr>
+            <tr><td><strong>Fundamental cell</strong></td><td>The basic parallelogram that repeats to make the pattern.</td></tr>
+            <tr><td><strong>Covolume</strong></td><td>Area of the fundamental cell = number of grid cells per repeat.</td></tr>
+            <tr><td><strong>Primitive / centred</strong></td><td>Whether the repeating cell is the smallest possible (primitive) or has an extra lattice point in the middle (centred).</td></tr>
+            <tr><td><strong>D4</strong></td><td>The group of the 8 symmetries of a square (4 turns + 4 flips).</td></tr>
+            <tr><td><strong>Point group</strong></td><td>The rotations and flips that fix a point — e.g. C2, C4, D2, D4. It ignores where lines and centres are.</td></tr>
+            <tr><td><strong>Holohedry</strong></td><td>The point group of the <em>lattice</em> itself (its own symmetry).</td></tr>
+            <tr><td><strong>Symmetry group / stabiliser</strong></td><td>The moves that leave a chosen shape unchanged.</td></tr>
+            <tr><td><strong>Orbit</strong></td><td>The different poses a shape reaches by applying the moves.</td></tr>
+            <tr><td><strong>Mirror</strong></td><td>A true reflection line.</td></tr>
+            <tr><td><strong>Glide</strong></td><td>A reflection combined with a slide along the line.</td></tr>
+            <tr><td><strong>Wallpaper group</strong></td><td>A label for the full repeating symmetry of a pattern; one of 17.</td></tr>
+            <tr><td><strong>Canonical signature</strong></td><td>A unique fingerprint for a tiling, so duplicates can be spotted.</td></tr>
+          </table>
+        </div>
+        <p class="muted" style="text-align:center">
+          Want to play with this for real? <a href="/">Open the Lab</a> and draw a
+          tile.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      Tessellating Shape Automaton · a hands-on explainer
+    </footer>
+
+    <script>
+      (function () {
+        "use strict";
+
+        // --- the 8 moves of D4, matching the app's names -------------------
+        var D4 = [
+          { key: "ID", label: "ID", f: function (x, y) { return [x, y]; } },
+          { key: "R90", label: "R90", f: function (x, y) { return [-y, x]; } },
+          { key: "R180", label: "R180", f: function (x, y) { return [-x, -y]; } },
+          { key: "R270", label: "R270", f: function (x, y) { return [y, -x]; } },
+          { key: "FX", label: "FX", f: function (x, y) { return [-x, y]; } },
+          { key: "FY", label: "FY", f: function (x, y) { return [x, -y]; } },
+          { key: "TR", label: "TR", f: function (x, y) { return [-y, -x]; } },
+          { key: "TL", label: "TL", f: function (x, y) { return [y, x]; } },
+        ];
+
+        var PALETTE = ["#4d9fdc", "#e666cc", "#80e666", "#f2cc4d", "#a673f2", "#f27366", "#35d0a5", "#8ce6bf", "#5876a8"];
+
+        function cellsToKey(cells) {
+          if (cells.length === 0) return "";
+          var minX = Infinity, minY = Infinity;
+          cells.forEach(function (c) { minX = Math.min(minX, c[0]); minY = Math.min(minY, c[1]); });
+          return cells
+            .map(function (c) { return (c[0] - minX) + "," + (c[1] - minY); })
+            .sort()
+            .join("|");
+        }
+
+        function transform(cells, move) {
+          return cells.map(function (c) { var p = move.f(c[0], c[1]); return [p[0], p[1]]; });
+        }
+
+        function drawShape(canvas, cells, cellPx, accent) {
+          var ctx = canvas.getContext("2d");
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          var w = canvas.width, h = canvas.height;
+          var cols = Math.floor(w / cellPx), rows = Math.floor(h / cellPx);
+          var key = cellsToKey(cells);
+          var norm = cells.length ? (function () {
+            var minX = Infinity, minY = Infinity;
+            cells.forEach(function (c) { minX = Math.min(minX, c[0]); minY = Math.min(minY, c[1]); });
+            return cells.map(function (c) { return [c[0] - minX, c[1] - minY]; });
+          })() : [];
+          var maxX = 0, maxY = 0;
+          norm.forEach(function (c) { maxX = Math.max(maxX, c[0]); maxY = Math.max(maxY, c[1]); });
+          var offX = Math.floor((cols - (maxX + 1)) / 2);
+          var offY = Math.floor((rows - (maxY + 1)) / 2);
+          for (var y = 0; y < rows; y++) {
+            for (var x = 0; x < cols; x++) {
+              ctx.fillStyle = ((x + y) % 2 === 0) ? "#0e1622" : "#0b111a";
+              ctx.fillRect(x * cellPx, y * cellPx, cellPx, cellPx);
+            }
+          }
+          norm.forEach(function (c) {
+            ctx.fillStyle = accent || "#4d9fdc";
+            ctx.fillRect((c[0] + offX) * cellPx + 1, (c[1] + offY) * cellPx + 1, cellPx - 2, cellPx - 2);
+          });
+          void key;
+        }
+
+        // --- 2. static D4 figure -------------------------------------------
+        (function () {
+          var host = document.getElementById("d4-figure");
+          if (!host) return;
+          var base = [[0, 0], [1, 0], [0, 1]]; // an L-tromino so each pose is distinct
+          D4.forEach(function (move) {
+            var cell = document.createElement("div");
+            cell.className = "cell";
+            var cv = document.createElement("canvas");
+            cv.width = 78; cv.height = 78;
+            drawShape(cv, transform(base, move), 18, "#4d9fdc");
+            var lab = document.createElement("div");
+            lab.className = "mini-label";
+            lab.textContent = move.label;
+            cell.appendChild(cv);
+            cell.appendChild(lab);
+            host.appendChild(cell);
+          });
+        })();
+
+        // --- 3. tile symmetry explorer -------------------------------------
+        (function () {
+          var GRID = 6, CELL = 42;
+          var canvas = document.getElementById("tile-grid");
+          var figure = document.getElementById("tile-figure");
+          var result = document.getElementById("tile-result");
+          if (!canvas || !figure || !result) return;
+          var ctx = canvas.getContext("2d");
+          var drawn = new Set();
+
+          function cells() {
+            return Array.from(drawn).map(function (k) {
+              var p = k.split(","); return [Number(p[0]), Number(p[1])];
+            });
+          }
+
+          function renderGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (var y = 0; y < GRID; y++) {
+              for (var x = 0; x < GRID; x++) {
+                ctx.fillStyle = drawn.has(x + "," + y) ? "#4d9fdc"
+                  : ((x + y) % 2 === 0 ? "#0e1622" : "#0b111a");
+                ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+              }
+            }
+            ctx.strokeStyle = "#1b2634";
+            ctx.lineWidth = 1;
+            for (var i = 0; i <= GRID; i++) {
+              ctx.beginPath(); ctx.moveTo(i * CELL + 0.5, 0); ctx.lineTo(i * CELL + 0.5, GRID * CELL); ctx.stroke();
+              ctx.beginPath(); ctx.moveTo(0, i * CELL + 0.5); ctx.lineTo(GRID * CELL, i * CELL + 0.5); ctx.stroke();
+            }
+          }
+
+          function namePointGroup(elements) {
+            var rotations = elements.filter(function (m) { return m === "ID" || m[0] === "R"; }).length;
+            var has90 = elements.indexOf("R90") >= 0 || elements.indexOf("R270") >= 0;
+            var has180 = elements.indexOf("R180") >= 0;
+            var refl = elements.length - rotations;
+            var order = has90 ? 4 : (has180 ? 2 : 1);
+            return (refl > 0 ? "D" : "C") + (refl > 0 && order === 1 ? 1 : order);
+          }
+
+          function update() {
+            var shape = cells();
+            figure.innerHTML = "";
+            if (shape.length === 0) {
+              result.innerHTML = "<span class='muted'>Draw a few cells to begin.</span>";
+              return;
+            }
+            var keys = D4.map(function (m) { return cellsToKey(transform(shape, m)); });
+            var distinct = keys.filter(function (k, i) { return keys.indexOf(k) === i; });
+            var colorOf = {};
+            distinct.forEach(function (k, i) { colorOf[k] = PALETTE[i % PALETTE.length]; });
+            D4.forEach(function (m, i) {
+              var cell = document.createElement("div");
+              cell.className = "cell";
+              var cv = document.createElement("canvas");
+              cv.width = 78; cv.height = 78;
+              drawShape(cv, transform(shape, m), 18, colorOf[keys[i]]);
+              var lab = document.createElement("div");
+              lab.className = "mini-label";
+              lab.textContent = m.label;
+              cell.appendChild(cv); cell.appendChild(lab); figure.appendChild(cell);
+            });
+            var stabiliser = D4.filter(function (m, i) { return keys[i] === keys[0]; }).map(function (m) { return m.key; });
+            var groupOrder = stabiliser.length;
+            var groupName = namePointGroup(stabiliser);
+            result.innerHTML =
+              "This tile has <strong class='big'>" + distinct.length + "</strong> different pose(s). " +
+              "Its symmetry group has <strong>" + groupOrder + "</strong> member(s) " +
+              "(<span class='tag'>" + groupName + "</span>: " + stabiliser.join(", ") + "). " +
+              "Check the maths: 8 ÷ " + groupOrder + " = " + (8 / groupOrder) + ".";
+          }
+
+          canvas.addEventListener("pointerdown", function (e) {
+            var r = canvas.getBoundingClientRect();
+            var x = Math.floor((e.clientX - r.left) / (r.width / GRID));
+            var y = Math.floor((e.clientY - r.top) / (r.height / GRID));
+            if (x < 0 || y < 0 || x >= GRID || y >= GRID) return;
+            var k = x + "," + y;
+            if (drawn.has(k)) drawn.delete(k); else drawn.add(k);
+            renderGrid(); update();
+          });
+
+          var presets = {
+            "L-tromino": [[1, 1], [2, 1], [1, 2]],
+            "Square": [[1, 1], [2, 1], [1, 2], [2, 2]],
+            "T-tetromino": [[1, 1], [2, 1], [3, 1], [2, 2]],
+            "L-tetromino": [[1, 1], [2, 1], [3, 1], [3, 2]],
+            "S-tetromino": [[2, 1], [3, 1], [1, 2], [2, 2]],
+          };
+          var host = document.getElementById("tile-presets");
+          Object.keys(presets).forEach(function (name) {
+            var b = document.createElement("button");
+            b.textContent = name;
+            b.addEventListener("click", function () {
+              drawn = new Set(presets[name].map(function (c) { return c[0] + "," + c[1]; }));
+              renderGrid(); update();
+            });
+            host.appendChild(b);
+          });
+          drawn = new Set(presets["L-tromino"].map(function (c) { return c[0] + "," + c[1]; }));
+          renderGrid(); update();
+        })();
+
+        // --- 4 & 5. lattice + holohedry ------------------------------------
+        (function () {
+          var canvas = document.getElementById("lattice-canvas");
+          var figure = document.getElementById("holo-figure");
+          var result = document.getElementById("holo-result");
+          var desc = document.getElementById("lattice-desc");
+          var presetsHost = document.getElementById("lattice-presets");
+          if (!canvas || !figure || !result) return;
+
+          var presets = {
+            "Square": { b1: [1, 0], b2: [0, 1], note: "Both arrows are the same length and at right angles. The most symmetric lattice there is." },
+            "Rectangle": { b1: [2, 0], b2: [0, 1], note: "Two different lengths at right angles: a plain (primitive) rectangle." },
+            "Centred rectangle": { b1: [2, 1], b2: [2, -1], note: "A rectangle seen at a tilt, with an extra lattice point in the middle of each cell. Same amount of symmetry as a plain rectangle, different shape." },
+            "Oblique": { b1: [3, 0], b2: [1, 2], note: "No reflections at all — only a half-turn. The least symmetric lattice." },
+          };
+          var current = "Square";
+
+          function isLatticeVector(u, b1, b2) {
+            var det = b1[0] * b2[1] - b1[1] * b2[0];
+            if (det === 0) return false;
+            var n1 = b2[1] * u[0] - b2[0] * u[1];
+            var n2 = b1[0] * u[1] - b1[1] * u[0];
+            return n1 % det === 0 && n2 % det === 0;
+          }
+          function holohedry(b1, b2) {
+            return D4.filter(function (m) {
+              var m1 = m.f(b1[0], b1[1]);
+              var m2 = m.f(b2[0], b2[1]);
+              return isLatticeVector(m1, b1, b2) && isLatticeVector(m2, b1, b2);
+            });
+          }
+          function nameHolo(elements) {
+            var order = elements.length;
+            if (order === 8) return "D4";
+            if (order === 4) return "D2";
+            if (order === 2) return "C2";
+            return "C1";
+          }
+
+          function drawLattice() {
+            var preset = presets[current];
+            var b1 = preset.b1, b2 = preset.b2;
+            var ctx = canvas.getContext("2d");
+            var w = canvas.width, h = canvas.height;
+            var scale = 34, cx = w / 2, cy = h / 2;
+            ctx.clearRect(0, 0, w, h);
+            function px(p) { return { x: cx + p[0] * scale, y: cy - p[1] * scale }; }
+            // fundamental cell shading
+            var o = px([0, 0]), p1 = px(b1), p2 = px(b2), p12 = px([b1[0] + b2[0], b1[1] + b2[1]]);
+            ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(p1.x, p1.y); ctx.lineTo(p12.x, p12.y); ctx.lineTo(p2.x, p2.y); ctx.closePath();
+            ctx.fillStyle = "rgba(77,159,220,0.12)"; ctx.fill();
+            // lattice points
+            ctx.fillStyle = "#4d9fdc";
+            for (var m = -8; m <= 8; m++) {
+              for (var n = -8; n <= 8; n++) {
+                var q = px([m * b1[0] + n * b2[0], m * b1[1] + n * b2[1]]);
+                if (q.x < -5 || q.x > w + 5 || q.y < -5 || q.y > h + 5) continue;
+                ctx.beginPath(); ctx.arc(q.x, q.y, 2.6, 0, Math.PI * 2); ctx.fill();
+              }
+            }
+            // basis arrows
+            function arrow(a, b, color, label) {
+              ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2.5;
+              ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+              var ang = Math.atan2(b.y - a.y, b.x - a.x);
+              ctx.beginPath();
+              ctx.moveTo(b.x, b.y);
+              ctx.lineTo(b.x - 9 * Math.cos(ang - 0.4), b.y - 9 * Math.sin(ang - 0.4));
+              ctx.lineTo(b.x - 9 * Math.cos(ang + 0.4), b.y - 9 * Math.sin(ang + 0.4));
+              ctx.closePath(); ctx.fill();
+              if (label) { ctx.font = "13px system-ui"; ctx.fillText(label, b.x + 6, b.y - 6); }
+            }
+            arrow(o, p1, "#35d0a5", "b1");
+            arrow(o, p2, "#4d9fdc", "b2");
+          }
+
+          function update() {
+            drawLattice();
+            var preset = presets[current];
+            var group = holohedry(preset.b1, preset.b2);
+            var keys = group.map(function (g) { return g.key; });
+            figure.innerHTML = "";
+            D4.forEach(function (m) {
+              var kept = keys.indexOf(m.key) >= 0;
+              var cell = document.createElement("div");
+              cell.className = "cell";
+              var cv = document.createElement("canvas");
+              cv.width = 70; cv.height = 70;
+              var ctx = cv.getContext("2d");
+              var b1 = preset.b1, b2 = preset.b2;
+              var scale = 15, cx = cv.width / 2, cy = cv.height / 2;
+              ctx.clearRect(0, 0, cv.width, cv.height);
+              function px(p) { return { x: cx + p[0] * scale, y: cy - p[1] * scale }; }
+              ctx.fillStyle = kept ? "#4d9fdc" : "#39424f";
+              for (var mm = -3; mm <= 3; mm++) {
+                for (var nn = -3; nn <= 3; nn++) {
+                  var q = px([mm * b1[0] + nn * b2[0], mm * b1[1] + nn * b2[1]]);
+                  if (Math.abs(q.x - cx) > 32 || Math.abs(q.y - cy) > 32) continue;
+                  ctx.beginPath(); ctx.arc(q.x, q.y, 2.2, 0, Math.PI * 2); ctx.fill();
+                }
+              }
+              var lab = document.createElement("div");
+              lab.className = "mini-label";
+              lab.innerHTML = m.label + (kept ? " <span class='ok'>✓</span>" : " <span class='muted'>✗</span>");
+              cell.appendChild(cv); cell.appendChild(lab);
+              figure.appendChild(cell);
+            });
+            result.innerHTML =
+              "Holohedry: <span class='tag big'>" + nameHolo(group) + "</span> — " +
+              group.length + " of the 8 moves keep the lattice. " +
+              "They are " + keys.join(", ") + ".";
+            desc.textContent = preset.note;
+          }
+
+          Object.keys(presets).forEach(function (name) {
+            var b = document.createElement("button");
+            b.textContent = name;
+            if (name === current) b.className = "active";
+            b.addEventListener("click", function () {
+              current = name;
+              Array.prototype.forEach.call(presetsHost.children, function (c) { c.className = ""; });
+              b.className = "active";
+              update();
+            });
+            presetsHost.appendChild(b);
+          });
+          update();
+        })();
+
+        // --- 1. valid / gap / overlap demo ---------------------------------
+        (function () {
+          var canvas = document.getElementById("valid-canvas");
+          if (!canvas) return;
+          var text = document.getElementById("valid-text");
+          var mode = "valid";
+          function render() {
+            var ctx = canvas.getContext("2d");
+            var CELL = 24;
+            var cols = Math.floor(canvas.width / CELL), rows = Math.floor(canvas.height / CELL);
+            var cells = {};
+            for (var y = 0; y < rows; y++) for (var x = 0; x < cols; x++) cells[x + "," + y] = 0;
+            // brick-ish 2-wide tiles offset every row
+            for (var yy = 0; yy < rows; yy++) {
+              var off = (yy % 2) * 1;
+              for (var xx = off - 2; xx < cols; xx += 2) {
+                for (var k = 0; k < 2; k++) {
+                  var cx = xx + k;
+                  if (cx < 0 || cx >= cols) continue;
+                  cells[cx + "," + yy] += 1;
+                }
+              }
+            }
+            if (mode === "gap") { delete cells["3,2"]; }
+            if (mode === "overlap") {
+              cells["1,1"] += 1; // pretend an extra tile sits here
+            }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (var y2 = 0; y2 < rows; y2++) {
+              for (var x2 = 0; x2 < cols; x2++) {
+                var v = cells[x2 + "," + y2];
+                var color = "#16324a";
+                if (mode === "gap" && v === 0) color = "#7a2b2b";
+                if (mode === "overlap" && v >= 2) color = "#8a5a1e";
+                ctx.fillStyle = color;
+                ctx.fillRect(x2 * CELL + 1, y2 * CELL + 1, CELL - 2, CELL - 2);
+              }
+            }
+          }
+          function setMode(m) {
+            mode = m;
+            render();
+            if (m === "valid") { text.className = "ok"; text.textContent = "Every cell covered exactly once. ✅"; }
+            if (m === "gap") { text.className = "bad"; text.textContent = "A cell is uncovered — that's a gap. ❌"; }
+            if (m === "overlap") { text.className = "warn"; text.textContent = "A cell is covered twice — that's an overlap. ❌"; }
+          }
+          document.getElementById("valid-btn").addEventListener("click", function () { setMode("valid"); });
+          document.getElementById("gap-btn").addEventListener("click", function () { setMode("gap"); });
+          document.getElementById("overlap-btn").addEventListener("click", function () { setMode("overlap"); });
+          render();
+        })();
+
+        // --- 9. same-tiling cartoon ----------------------------------------
+        (function () {
+          var canvas = document.getElementById("same-canvas");
+          if (!canvas) return;
+          var ctx = canvas.getContext("2d");
+          var CELL = 20;
+          // a small valid patch of a running-bond (brick wall) tiling
+          var tiles = [
+            [[0, 0], [1, 0]], [[2, 0], [3, 0]], [[4, 0], [5, 0]],
+            [[1, 1], [2, 1]], [[3, 1], [4, 1]], [[5, 1], [6, 1]],
+            [[0, 2], [1, 2]], [[2, 2], [3, 2]], [[4, 2], [5, 2]],
+          ];
+          function drawTiles(list, ox, oy, color) {
+            list.forEach(function (tile) {
+              tile.forEach(function (c) {
+                ctx.fillStyle = color;
+                ctx.fillRect(ox + c[0] * CELL + 1, oy + c[1] * CELL + 1, CELL - 2, CELL - 2);
+              });
+            });
+          }
+          function rotate(list) {
+            return list.map(function (tile) {
+              return tile.map(function (c) { return [-c[1], c[0]]; });
+            });
+          }
+          function normalize(list) {
+            var minX = Infinity, minY = Infinity;
+            list.forEach(function (t) { t.forEach(function (c) {
+              minX = Math.min(minX, c[0]); minY = Math.min(minY, c[1]);
+            }); });
+            return list.map(function (t) { return t.map(function (c) { return [c[0] - minX, c[1] - minY]; }); });
+          }
+          var right = normalize(rotate(tiles));
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#8fa3ba"; ctx.font = "12px system-ui";
+          ctx.fillText("description A", 14, 16);
+          ctx.fillText("description B — the same tiling, turned and slid", 150, 16);
+          drawTiles(tiles, 14, 30, "rgba(77,159,220,0.9)");
+          drawTiles(right, 170, 30, "rgba(53,208,165,0.9)");
+          ctx.fillStyle = "#35d0a5";
+          ctx.fillText("= same tiling ✓", 170, 30 + 7 * CELL + 14);
+        })();
+      })();
+    </script>
+  </body>
+</html>

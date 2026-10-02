@@ -211,6 +211,34 @@ try {
     if (!view.borders) problems.push("view: borders toggle did not stick");
     if (!view.symmetry) problems.push("view: symmetry toggle did not stick");
   }
+
+  // The interactive explainer must load and build all of its figures.
+  const learnErrors = [];
+  const learnPage = await browser.newPage();
+  learnPage.on("pageerror", (e) => learnErrors.push(e.message));
+  learnPage.on("console", (m) => {
+    if (m.type() === "error") learnErrors.push(m.text());
+  });
+  await learnPage.goto(new URL("/learn.html", APP_URL).href, {
+    waitUntil: "load",
+  });
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  const learn = await learnPage.evaluate(() => ({
+    wallpaper: !!document.getElementById("wallpaper"),
+    holoFigures: document.querySelectorAll("#holo-figure canvas").length,
+    tileFigures: document.querySelectorAll("#tile-figure canvas").length,
+  }));
+  if (process.env.SHOT_LEARN) {
+    await learnPage.setViewport({ width: 900, height: 1200 });
+    await learnPage.screenshot({ path: process.env.SHOT_LEARN, fullPage: true });
+  }
+  await learnPage.close();
+  console.log("learn:", JSON.stringify(learn));
+  for (const e of learnErrors) problems.push(`LEARN: ${e}`);
+  if (!learn.wallpaper || learn.holoFigures !== 8 || learn.tileFigures !== 8) {
+    problems.push(`learn.html figures missing: ${JSON.stringify(learn)}`);
+  }
+
   for (const e of pageErrors) problems.push(`PAGEERROR: ${e}`);
   for (const e of httpErrors) problems.push(`HTTP: ${e}`);
   for (const e of consoleErrors) problems.push(`CONSOLE.ERROR: ${e}`);

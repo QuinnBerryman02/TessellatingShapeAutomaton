@@ -283,5 +283,7 @@ validator is trusted.
   square-lattice wallpaper symbol per result, from the point group + lattice
   holohedry + mirror/glide test). Added `pg` (glide-only) and fixed the
   centred/oblique lattice confusion; the L-tromino realises both cm and cmm.
-  Follow-ups from the design doc: energy budgets, max extent, and the
-  anti-snowball severing mechanic.
+  Also added `public/learn.html`, a self-contained interactive explainer of
+  tessellations, D4, lattices, holohedry and the wallpaper groups. Follow-ups
+  from the design doc: energy budgets, max extent, and the anti-snowball
+  severing mechanic.

@@ -19,6 +19,14 @@ npm run smoke:browser    # boot the app headlessly, capture console + errors
 The dev server uses port **5273** (set in `vite.config.ts`). WebGPU requires a
 recent Chrome/Edge/Brave or Safari; on localhost it works without HTTPS.
 
+## Interactive guide
+
+`public/learn.html` (served as `/learn.html`, and linked as **Guide** in the
+app HUD) is a beginner-friendly explainer of the maths: tessellations, the D4
+symmetries, tile symmetry, lattices, holohedry, the wallpaper groups, how a
+tiling is verified, and how duplicates are canonicalised. It is self-contained
+(no build step) and the smoke test checks it loads without errors.
+
 ## Headless GPU verification
 
 `npm test` fails if a shader does not compile or the app cannot bring up a GPU
