@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <title>Polyomino Encyclopedia — Tessellating Shape Automaton</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        background: #0a0f16;
+        color: #dbe6f2;
+        font: 14px/1.5 system-ui, sans-serif;
+      }
+      a { color: #4d9fdc; }
+      header.hero {
+        padding: 26px 20px 18px;
+        text-align: center;
+        background: radial-gradient(1000px 240px at 50% -70px, #16283c, transparent);
+        border-bottom: 1px solid #223044;
+      }
+      header.hero h1 { margin: 0 0 6px; font-size: 24px; }
+      header.hero p { margin: 0 auto; max-width: 760px; color: #8fa3ba; font-size: 13.5px; }
+      main { max-width: 1200px; margin: 0 auto; padding: 18px 16px 70px; }
+      .toolbar { display: flex; gap: 12px; align-items: center; justify-content: flex-end; margin-bottom: 10px; }
+      button {
+        font: inherit; font-size: 13px; color: inherit; cursor: pointer;
+        background: #17202b; border: 1px solid #2e3b4a; border-radius: 7px; padding: 5px 12px;
+      }
+      button:hover { background: #1f2b39; }
+      .size-block { border-top: 1px solid #223044; padding: 16px 0 22px; }
+      .size-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+      .size-head h2 { margin: 0; font-size: 20px; }
+      .muted { color: #8fa3ba; font-size: 13px; }
+      .status { color: #35d0a5; font-size: 13px; margin-left: auto; }
+      .size-row { display: flex; gap: 18px; align-items: flex-start; }
+      .gallery {
+        flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 8px;
+        max-width: 260px; align-content: flex-start;
+      }
+      .thumb {
+        display: block; padding: 3px; background: #0c131c;
+        border: 1px solid #223044; border-radius: 8px; line-height: 0;
+      }
+      .thumb:hover { border-color: #4d9fdc; }
+      .thumb canvas { display: block; image-rendering: pixelated; }
+      .counts { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
+      table { border-collapse: collapse; font-size: 12.5px; }
+      th, td { border: 1px solid #223044; padding: 3px 7px; text-align: center; }
+      th { background: #131c28; color: #8fa3ba; position: sticky; top: 0; }
+      th:first-child, td:first-child { text-align: left; }
+      td.tile-cell { padding: 1px 3px; }
+      td.tile-cell a { display: inline-block; line-height: 0; }
+      td.hit { color: #35d0a5; font-weight: 600; background: rgba(53,208,165,0.06); }
+      .note { color: #8fa3ba; font-size: 13px; margin: 4px 0 0; }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <h1>Polyomino Encyclopedia</h1>
+      <p>
+        Every distinct tile of each size, and how many different tessellations of
+        each wallpaper group it can make. Press <strong>Search</strong> to
+        compute a size (it is saved as it goes), or click any tile to open it in
+        the Lab.
+      </p>
+    </header>
+    <main>
+      <p class="note">
+        Counts use the same search the Lab uses (lattices up to covolume 16,
+        capped at 200 tilings per tile). Only <em>free</em> polyominoes are
+        listed — rotations and reflections count as the same tile.
+      </p>
+      <div class="toolbar">
+        <span class="muted">results are saved in this browser</span>
+        <button id="reset-all">Reset all</button>
+      </div>
+      <div id="sizes"></div>
+    </main>
+    <script type="module" src="/src/encyclopedia/main.ts"></script>
+  </body>
+</html>

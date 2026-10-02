@@ -27,6 +27,21 @@ symmetries, tile symmetry, lattices, holohedry, the wallpaper groups, how a
 tiling is verified, and how duplicates are canonicalised. It is self-contained
 (no build step) and the smoke test checks it loads without errors.
 
+## Polyomino encyclopedia
+
+`encyclopedia.html` (served at `/encyclopedia.html`, linked in the HUD) lists
+**every free polyomino** by size and, for each, counts how many distinct
+tessellations it makes in each of the 12 square-lattice wallpaper groups. Press
+**Search** to compute a size: it walks the polyominoes one at a time, appends
+rows live, and caches the result in `localStorage` (`tsa.encyclopedia.v1`) so it
+loads instantly next time; **Search** again resets and recomputes, and **Reset
+all** clears the cache. Clicking a tile opens the app at
+`/?shape=x,y;x,y`, which the Lab loads into its draw grid.
+
+This is a real Vite page (a second `build.rollupOptions.input`), not a static
+asset, because it uses the TypeScript solver directly. `src/encyclopedia/`
+holds the free-polyomino enumeration and the page logic.
+
 ## Headless GPU verification
 
 `npm test` fails if a shader does not compile or the app cannot bring up a GPU

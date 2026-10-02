@@ -239,6 +239,67 @@ try {
     problems.push(`learn.html figures missing: ${JSON.stringify(learn)}`);
   }
 
+  // The encyclopedia: load it and search size 1, which must report one p4m
+  // tiling for the single pixel.
+  const encErrors = [];
+  const encPage = await browser.newPage();
+  encPage.on("pageerror", (e) => encErrors.push(e.message));
+  encPage.on("console", (m) => {
+    if (m.type() === "error") encErrors.push(m.text());
+  });
+  await encPage.goto(new URL("/encyclopedia.html", APP_URL).href, {
+    waitUntil: "load",
+  });
+  await encPage.evaluate(async () => {
+    document.querySelector(".size-block button")?.click();
+    for (let i = 0; i < 400; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const status = document.querySelector(".size-block .status")?.textContent ?? "";
+      if (status.includes("done")) return;
+    }
+  });
+  const enc = await encPage.evaluate(() => {
+    const block = document.querySelector(".size-block");
+    const headers = Array.from(block?.querySelectorAll("thead th") ?? []);
+    const p4m = headers.findIndex((th) => th.textContent === "p4m");
+    const row = block?.querySelector("tbody tr");
+    return {
+      sizes: document.querySelectorAll(".size-block").length,
+      p4m: row && p4m >= 0 ? row.children[p4m].textContent : null,
+    };
+  });
+  if (process.env.SHOT_ENC) {
+    await encPage.setViewport({ width: 1200, height: 900 });
+    await encPage.screenshot({ path: process.env.SHOT_ENC, fullPage: true });
+  }
+  await encPage.close();
+  console.log("encyclopedia:", JSON.stringify(enc));
+  for (const e of encErrors) problems.push(`ENC: ${e}`);
+  if (enc.sizes < 6) problems.push(`encyclopedia rendered ${enc.sizes} sizes`);
+  if (enc.p4m !== "1") {
+    problems.push(`encyclopedia size-1 p4m expected 1, got ${enc.p4m}`);
+  }
+
+  // Following an encyclopedia tile loads it into the Lab drawer via ?shape=.
+  const preloadPage = await browser.newPage();
+  await preloadPage.goto(new URL("/?shape=0,0;1,0;0,1", APP_URL).href, {
+    waitUntil: "load",
+  });
+  await preloadPage
+    .waitForFunction("window.__tsaDiag && window.__tsaDiag.device === true", {
+      timeout: 20000,
+    })
+    .catch(() => {});
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  const shapeInfo = await preloadPage.evaluate(
+    () => document.getElementById("lab-shape-info")?.textContent ?? "",
+  );
+  await preloadPage.close();
+  console.log("preload shape info:", JSON.stringify(shapeInfo));
+  if (!/orientation/.test(shapeInfo)) {
+    problems.push(`?shape= preload did not reach the Lab: "${shapeInfo}"`);
+  }
+
   for (const e of pageErrors) problems.push(`PAGEERROR: ${e}`);
   for (const e of httpErrors) problems.push(`HTTP: ${e}`);
   for (const e of consoleErrors) problems.push(`CONSOLE.ERROR: ${e}`);

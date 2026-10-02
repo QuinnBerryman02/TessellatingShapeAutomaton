@@ -28,6 +28,17 @@ const BATTLE_TICK_MS = 90;
 
 type Mode = "lab" | "battle" | "view";
 
+/** Parse a `?shape=x,y;x,y` query into cell coordinates. */
+function parseShapeParam(value: string | null): [number, number][] {
+  if (!value) return [];
+  const cells: [number, number][] = [];
+  for (const part of value.split(";")) {
+    const [x, y] = part.split(",").map(Number);
+    if (Number.isFinite(x) && Number.isFinite(y)) cells.push([x, y]);
+  }
+  return cells;
+}
+
 async function main(): Promise<void> {
   installDiagnostics();
   // Exposed for the headless smoke test in scripts/browser-smoke.mjs.
@@ -204,6 +215,15 @@ async function main(): Promise<void> {
     modeBattle.addEventListener("click", () => setMode("battle"));
     modeView.addEventListener("click", () => setMode("view"));
     setMode("lab");
+
+    // The encyclopedia links here with ?shape=x,y;x,y to preload a tile.
+    const requestedShape = parseShapeParam(
+      new URLSearchParams(location.search).get("shape"),
+    );
+    if (requestedShape.length > 0) {
+      lab.setShape(requestedShape);
+      setMode("lab");
+    }
 
     const start = performance.now();
     let frameIndex = 0;

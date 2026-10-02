@@ -284,6 +284,8 @@ validator is trusted.
   holohedry + mirror/glide test). Added `pg` (glide-only) and fixed the
   centred/oblique lattice confusion; the L-tromino realises both cm and cmm.
   Also added `public/learn.html`, a self-contained interactive explainer of
-  tessellations, D4, lattices, holohedry and the wallpaper groups. Follow-ups
-  from the design doc: energy budgets, max extent, and the anti-snowball
-  severing mechanic.
+  tessellations, D4, lattices, holohedry and the wallpaper groups, and the
+  `encyclopedia.html` page: every free polyomino by size, with wallpaper-group
+  counts per tile (searched on demand and cached), linking into the Lab via
+  `/?shape=`. Follow-ups from the design doc: energy budgets, max extent, and
+  the anti-snowball severing mechanic.
