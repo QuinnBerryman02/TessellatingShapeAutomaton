@@ -326,6 +326,110 @@ export function canonicalOrientation(group: readonly D4[], orientation: D4): D4 
   return best;
 }
 
+/**
+ * How many distinct orientations a shape has under the square's symmetries:
+ * the size of its D4 orbit, `8 / |symmetry group|` (orbit-stabiliser).
+ */
+export function shapeOrientationCount(shape: ShapeDef): number {
+  return D4_NAMES.length / shapeSymmetryGroup(shape).length;
+}
+
+/** Mirror (fixed-line) direction of each reflection element of D4. */
+const MIRROR_DIRECTION: Partial<Record<D4, Vec2>> = {
+  4: { x: 0, y: 1 }, // FX, mirrors parallel to y
+  5: { x: 1, y: 0 }, // FY, mirrors parallel to x
+  6: { x: 1, y: -1 }, // TR
+  7: { x: 1, y: 1 }, // TL
+};
+
+/**
+ * Whether the reflection `(g, t)` has a genuine mirror line, or is only ever a
+ * glide. A reflection keeps a fixed line iff its translation has no component
+ * along the mirror; whether one can be removed depends on the projection of the
+ * translation lattice onto that direction.
+ */
+function hasMirrorAxis(g: D4, t: Vec2, basis1: Vec2, basis2: Vec2): boolean {
+  const a = MIRROR_DIRECTION[g];
+  if (!a) return false;
+  const projected = gcd(
+    basis1.x * a.x + basis1.y * a.y,
+    basis2.x * a.x + basis2.y * a.y,
+  );
+  if (projected === 0) return true;
+  const along = t.x * a.x + t.y * a.y;
+  return ((along % projected) + projected) % projected === 0;
+}
+
+/** Gauss-reduced basis of a lattice (shortest vectors first). */
+function gaussReduce(a: Vec2, b: Vec2): [Vec2, Vec2] {
+  const dot = (p: Vec2, q: Vec2): number => p.x * q.x + p.y * q.y;
+  let u = { ...a };
+  let v = { ...b };
+  if (dot(u, u) > dot(v, v)) [u, v] = [v, u];
+  for (let i = 0; i < 100; i++) {
+    const uu = dot(u, u);
+    if (uu === 0) break;
+    const m = Math.round(dot(u, v) / uu);
+    const next = { x: v.x - m * u.x, y: v.y - m * u.y };
+    if (next.x === v.x && next.y === v.y) break;
+    v = next;
+    if (dot(u, u) > dot(v, v)) [u, v] = [v, u];
+  }
+  return [u, v];
+}
+
+/** The metric class of a lattice, from its reduced basis. */
+function latticeType(
+  basis1: Vec2,
+  basis2: Vec2,
+): "square" | "rectangular" | "rhombic" | "oblique" {
+  const [u, v] = gaussReduce(basis1, basis2);
+  const dot = u.x * v.x + u.y * v.y;
+  const lu = u.x * u.x + u.y * u.y;
+  const lv = v.x * v.x + v.y * v.y;
+  if (dot === 0) return lu === lv ? "square" : "rectangular";
+  if (lu === lv) return "rhombic";
+  return "oblique";
+}
+
+/**
+ * The wallpaper group of a tiling, as its standard symbol.
+ *
+ * Since the tiles live on Z², only the square-lattice groups are reachable:
+ * p1, p2, pm, cm, pmm, pmg, pgg, cmm, p4, p4m, p4g. The point group and the
+ * lattice metric pick the group; the reflection/glide check separates the
+ * mirror-bearing symbols (pm/pmm/pmg/p4m) from the glide-bearing ones
+ * (cm/cmm/pgg/p4g).
+ */
+export function wallpaperGroup(def: TessellationDef): string {
+  const lattice = translationLattice(def);
+  const symmetries = pointSymmetries(def);
+  const pointGroup = new Set<number>(symmetries.map((s) => s.g));
+  const translationOf = new Map<number, Vec2>(
+    symmetries.map((s) => [s.g, s.t] as const),
+  );
+  const type = latticeType(lattice.basis1, lattice.basis2);
+  const has = (g: D4): boolean => pointGroup.has(g);
+  const reflections = ([4, 5, 6, 7] as D4[]).filter(has);
+  const isMirror = (g: D4): boolean =>
+    hasMirrorAxis(g, translationOf.get(g) as Vec2, lattice.basis1, lattice.basis2);
+
+  if (pointGroup.size === 1) return "p1";
+  if (has(1) || has(3)) {
+    if (reflections.length === 0) return "p4";
+    return reflections.every(isMirror) ? "p4m" : "p4g";
+  }
+  if (has(2)) {
+    if (reflections.length === 0) return "p2";
+    const mirrors = reflections.filter(isMirror).length;
+    if (mirrors === 2) return type === "rhombic" ? "cmm" : "pmm";
+    if (mirrors === 1) return "pmg";
+    return "pgg";
+  }
+  if (reflections.length === 1) return type === "rhombic" ? "cm" : "pm";
+  return "p1";
+}
+
 /** The translation making `applyD4(s, shape) + t` equal the shape. */
 function shapeSymmetryTranslation(shape: ShapeDef, s: D4): Vec2 {
   const moved = transformedCells(shape, s);

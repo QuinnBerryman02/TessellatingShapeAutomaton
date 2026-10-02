@@ -4,6 +4,11 @@ import { paletteIndex } from "../core/cell.ts";
 import { covolume, rasterize, type TessellationDef } from "../model/tessellation.ts";
 import { canonicalSignature } from "../solver/canonical.ts";
 import { findTessellations } from "../solver/find.ts";
+import {
+  shapeOrientationCount,
+  shapeSymmetryGroup,
+  wallpaperGroup,
+} from "../solver/symmetry.ts";
 import { Collection } from "./collection.ts";
 
 const GRID = 14;
@@ -44,6 +49,7 @@ export class LabPanel {
   private readonly resultsEl: HTMLElement;
   private readonly collectionEl: HTMLElement;
   private readonly statusEl: HTMLElement;
+  private readonly shapeInfoEl: HTMLElement;
   private readonly saveButton: HTMLButtonElement;
   private readonly collection = new Collection();
 
@@ -60,6 +66,7 @@ export class LabPanel {
     this.resultsEl = this.query<HTMLElement>("#lab-results");
     this.collectionEl = this.query<HTMLElement>("#lab-collection");
     this.statusEl = this.query<HTMLElement>("#lab-status");
+    this.shapeInfoEl = this.query<HTMLElement>("#lab-shape-info");
     this.saveButton = this.query<HTMLButtonElement>("#lab-save");
     const ctx = this.drawCanvas.getContext("2d");
     if (!ctx) throw new Error("2D canvas context unavailable");
@@ -237,6 +244,20 @@ export class LabPanel {
       ctx.lineTo(size, i * CELL + 0.5);
       ctx.stroke();
     }
+    this.updateShapeInfo();
+  }
+
+  private updateShapeInfo(): void {
+    const shape = this.shapeFromDrawn();
+    if (shape.cells.length === 0) {
+      this.shapeInfoEl.textContent = "";
+      return;
+    }
+    const orientations = shapeOrientationCount(shape);
+    const stabiliser = shapeSymmetryGroup(shape).length;
+    this.shapeInfoEl.textContent =
+      `Tile symmetry: ${orientations} orientation(s) ` +
+      `· stabiliser \u00d7${stabiliser}`;
   }
 
   private shapeFromDrawn(): ShapeDef {
@@ -311,7 +332,7 @@ export class LabPanel {
       const canvas = document.createElement("canvas");
       renderPreview(canvas, def);
       const label = document.createElement("span");
-      label.textContent = `${def.placements.length}p`;
+      label.textContent = `${def.placements.length}p \u00b7 ${wallpaperGroup(def)}`;
       item.append(canvas, label);
       item.addEventListener("click", () => this.select(index));
       this.resultsEl.appendChild(item);

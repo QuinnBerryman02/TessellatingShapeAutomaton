@@ -278,5 +278,8 @@ validator is trusted.
   canonicalise the tiling's **cell sets** (not orientation labels, which are
   ambiguous for a shape with its own symmetry, and which lose each tile's phase
   within the fundamental domain). The finder also generates one orientation per
-  shape-symmetry class. Follow-ups from the design doc: energy budgets, max
-  extent, and the anti-snowball severing mechanic.
+  shape-symmetry class. Also added `shapeOrientationCount` (a shape's D4 orbit
+  size, shown under the Lab drawing) and `wallpaperGroup` (accurate
+  square-lattice wallpaper symbol per result, from the point group + lattice
+  metric + mirror/glide test). Follow-ups from the design doc: energy budgets,
+  max extent, and the anti-snowball severing mechanic.

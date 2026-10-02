@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { D4 } from "../core/d4.ts";
-import { L_TROMINO_BRICK, UNIT_SQUARE } from "../model/builtins.ts";
+import { L_TROMINO, L_TROMINO_BRICK, UNIT_SQUARE } from "../model/builtins.ts";
 import {
   transformTessellation,
   type TessellationDef,
@@ -11,8 +11,10 @@ import {
   canonicalSignature,
   pointSymmetries,
   sameTessellation,
+  shapeOrientationCount,
   shapeSymmetryGroup,
   translationLattice,
+  wallpaperGroup,
 } from "./symmetry.ts";
 
 /** The unit square described with a doubling (supercell) lattice and 4 tiles. */
@@ -96,6 +98,29 @@ test("a 180-symmetric shape written with the other orientation is the same tilin
     placements: [{ offset: { x: 3, y: 2 }, orientation: 2 }],
   };
   assert.ok(sameTessellation(identity, rotated));
+});
+
+test("tile orientation counts follow the shape's symmetry", () => {
+  // square: stabiliser is all of D4 -> one orientation.
+  assert.equal(shapeOrientationCount(UNIT_SQUARE.shape), 1);
+  // L-tromino: the diagonal reflection is a symmetry, so 8/2 = 4.
+  assert.equal(shapeOrientationCount(L_TROMINO), 4);
+  // A fully asymmetric shape would have all 8.
+  const skew = {
+    name: "skew",
+    cells: [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+      { x: 2, y: 1 },
+    ],
+  };
+  assert.equal(shapeOrientationCount(skew), 8);
+});
+
+test("wallpaper group symbols for known tilings", () => {
+  assert.equal(wallpaperGroup(UNIT_SQUARE), "p4m");
+  assert.equal(wallpaperGroup(L_TROMINO_BRICK), "p2");
 });
 
 test("the L-tromino brick has a 180-degree symmetry", () => {

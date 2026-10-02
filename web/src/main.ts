@@ -5,7 +5,11 @@ import { GridScene } from "./gpu/gridScene.ts";
 import { LabPanel } from "./lab/labPanel.ts";
 import { L_TROMINO_BRICK, UNIT_SQUARE } from "./model/builtins.ts";
 import { rasterize, type TessellationDef } from "./model/tessellation.ts";
-import { analyzeSymmetry } from "./solver/symmetry.ts";
+import {
+  analyzeSymmetry,
+  shapeOrientationCount,
+  wallpaperGroup,
+} from "./solver/symmetry.ts";
 import { Battle } from "./sim/battle.ts";
 
 const canvas = document.getElementById("app") as HTMLCanvasElement;
@@ -64,7 +68,10 @@ async function main(): Promise<void> {
       );
       scene.setCells(raster.cells);
       viewInfo.textContent =
-        `${selected.placements.length} placement(s) · ${selected.shape.cells.length}-cell tile` +
+        `${selected.placements.length} placement(s) · ` +
+        `${selected.shape.cells.length}-cell tile · ` +
+        `${shapeOrientationCount(selected.shape)} orient(s) · ` +
+        `${wallpaperGroup(selected)}` +
         (showSymmetry
           ? ` · ${selectedSymmetry.orbitCount} orbit(s) · ${selectedSymmetry.pointSymmetries.length} symmetry op(s)`
           : "");
@@ -125,7 +132,7 @@ async function main(): Promise<void> {
         viewInfo.textContent = battleInfo();
       } else {
         scene.setZoom(4);
-        if (next === "view") showTessellation(selected);
+        renderSelected();
       }
       resizeCanvas(canvas);
     };

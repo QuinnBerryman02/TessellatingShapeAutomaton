@@ -140,6 +140,14 @@ try {
   if (process.env.SHOT) {
     await page.screenshot({ path: process.env.SHOT });
   }
+  if (process.env.SHOT_PANEL) {
+    await page.evaluate(async () => {
+      window.__tsaBattle.setMode("lab");
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    });
+    await page.screenshot({ path: process.env.SHOT_PANEL });
+  }
   if (process.env.SHOT_LAB) {
     await page.evaluate(async () => {
       window.__tsaBattle.setMode("view");
