@@ -51,7 +51,7 @@ test("results are single-orbit tilings", () => {
   }
 });
 
-test("the L-tetromino finds both mirror and glide tilings", () => {
+test("the L-tetromino finds glide and centred tilings", () => {
   const shape = {
     name: "L4",
     cells: [
@@ -68,10 +68,24 @@ test("the L-tetromino finds both mirror and glide tilings", () => {
     maxResults: 64,
   });
   const groups = new Set(found.map((def) => wallpaperGroup(def)));
-  // A reflection whose translations are all glides is pg, not pm.
+  // A reflection whose translations are all glides is pg, not pm; a centred
+  // rectangular lattice gives cm/cmm.
   assert.ok(groups.has("pg"), `expected pg among ${[...groups].join(",")}`);
+  assert.ok(groups.has("cm"), `expected cm among ${[...groups].join(",")}`);
+  assert.ok(groups.has("cmm"), `expected cmm among ${[...groups].join(",")}`);
+});
+
+test("the domino finds pm and cm tilings", () => {
+  const shape = { name: "I2", cells: [{ x: 0, y: 0 }, { x: 1, y: 0 }] };
+  const found = findTessellations(shape, {
+    maxBasis: 5,
+    maxCovolume: 24,
+    maxPlacements: 10,
+    maxResults: 400,
+  });
+  const groups = new Set(found.map((def) => wallpaperGroup(def)));
   assert.ok(groups.has("pm"), `expected pm among ${[...groups].join(",")}`);
-  assert.ok(groups.has("p1"), `expected p1 among ${[...groups].join(",")}`);
+  assert.ok(groups.has("cm"), `expected cm among ${[...groups].join(",")}`);
 });
 
 test("results contain the drawn shape, in its drawn orientation, at the origin", () => {

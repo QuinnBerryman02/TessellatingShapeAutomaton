@@ -6,6 +6,7 @@ import {
   transformTessellation,
   type TessellationDef,
 } from "../model/tessellation.ts";
+import { validateTessellation } from "./validate.ts";
 import {
   analyzeSymmetry,
   canonicalSignature,
@@ -121,6 +122,33 @@ test("tile orientation counts follow the shape's symmetry", () => {
 test("wallpaper group symbols for known tilings", () => {
   assert.equal(wallpaperGroup(UNIT_SQUARE), "p4m");
   assert.equal(wallpaperGroup(L_TROMINO_BRICK), "p2");
+});
+
+test("the L-tromino realises the centred groups cm and cmm", () => {
+  const cm: TessellationDef = {
+    name: "cm",
+    shape: L_TROMINO,
+    basis1: { x: -5, y: -2 },
+    basis2: { x: 1, y: 1 },
+    placements: [{ offset: { x: 0, y: 0 }, orientation: 0 }],
+  };
+  assert.ok(validateTessellation(cm).valid);
+  assert.equal(wallpaperGroup(cm), "cm");
+
+  const cmm: TessellationDef = {
+    name: "cmm",
+    shape: L_TROMINO,
+    basis1: { x: -3, y: -2 },
+    basis2: { x: -3, y: 2 },
+    placements: [
+      { offset: { x: 0, y: 0 }, orientation: 0 },
+      { offset: { x: 2, y: 1 }, orientation: 2 },
+      { offset: { x: 0, y: -1 }, orientation: 3 },
+      { offset: { x: -1, y: 0 }, orientation: 1 },
+    ],
+  };
+  assert.ok(validateTessellation(cmm).valid);
+  assert.equal(wallpaperGroup(cmm), "cmm");
 });
 
 test("the L-tromino brick has a 180-degree symmetry", () => {

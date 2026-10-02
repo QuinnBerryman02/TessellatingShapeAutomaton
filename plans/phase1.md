@@ -281,5 +281,7 @@ validator is trusted.
   shape-symmetry class. Also added `shapeOrientationCount` (a shape's D4 orbit
   size, shown under the Lab drawing) and `wallpaperGroup` (accurate
   square-lattice wallpaper symbol per result, from the point group + lattice
-  metric + mirror/glide test). Follow-ups from the design doc: energy budgets,
-  max extent, and the anti-snowball severing mechanic.
+  holohedry + mirror/glide test). Added `pg` (glide-only) and fixed the
+  centred/oblique lattice confusion; the L-tromino realises both cm and cmm.
+  Follow-ups from the design doc: energy budgets, max extent, and the
+  anti-snowball severing mechanic.

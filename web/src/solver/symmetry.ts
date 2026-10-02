@@ -378,17 +378,38 @@ function gaussReduce(a: Vec2, b: Vec2): [Vec2, Vec2] {
   return [u, v];
 }
 
-/** The metric class of a lattice, from its reduced basis. */
+/** The point-group symmetries of the lattice itself (its holohedry). */
+function holohedry(basis1: Vec2, basis2: Vec2): D4[] {
+  const result: D4[] = [];
+  for (let g = 0; g < D4_NAMES.length; g++) {
+    const element = g as D4;
+    if (
+      isLatticeVector(applyD4(element, basis1), basis1, basis2) &&
+      isLatticeVector(applyD4(element, basis2), basis1, basis2)
+    ) {
+      result.push(element);
+    }
+  }
+  return result;
+}
+
+/**
+ * The Bravais-lattice class. The metric alone cannot separate an oblique
+ * lattice from a centred-rectangular one (a centred rectangular lattice can
+ * have a non-orthogonal, unequal reduced basis), so the lattice's own point
+ * symmetry decides D2-ness and the reduced basis then distinguishes a primitive
+ * rectangle from a centred one.
+ */
 function latticeType(
   basis1: Vec2,
   basis2: Vec2,
 ): "square" | "rectangular" | "rhombic" | "oblique" {
-  const [u, v] = gaussReduce(basis1, basis2);
-  const dot = u.x * v.x + u.y * v.y;
-  const lu = u.x * u.x + u.y * u.y;
-  const lv = v.x * v.x + v.y * v.y;
-  if (dot === 0) return lu === lv ? "square" : "rectangular";
-  if (lu === lv) return "rhombic";
+  const symmetry = holohedry(basis1, basis2);
+  if (symmetry.length === 8) return "square";
+  if (symmetry.length === 4) {
+    const [u, v] = gaussReduce(basis1, basis2);
+    return u.x * v.x + u.y * v.y === 0 ? "rectangular" : "rhombic";
+  }
   return "oblique";
 }
 
