@@ -10,6 +10,8 @@ import {
   analyzeSymmetry,
   canonicalSignature,
   pointSymmetries,
+  sameTessellation,
+  shapeSymmetryGroup,
   translationLattice,
 } from "./symmetry.ts";
 
@@ -57,12 +59,43 @@ test("translation and D4 leave the signature unchanged", () => {
   }
 });
 
-test("the unit square has only the identity point symmetry", () => {
+test("the unit-square tiling has the full square symmetry", () => {
   assert.deepEqual(
-    pointSymmetries(UNIT_SQUARE).map((p) => p.g),
-    [0],
+    pointSymmetries(UNIT_SQUARE)
+      .map((p) => p.g)
+      .sort((a, b) => a - b),
+    [0, 1, 2, 3, 4, 5, 6, 7],
   );
   assert.equal(analyzeSymmetry(UNIT_SQUARE).orbitCount, 1);
+});
+
+test("a 180-symmetric shape written with the other orientation is the same tiling", () => {
+  // This shape is itself 180-degree symmetric, so a tile can be written with
+  // orientation 0 or 2. The two descriptions must canonicalise identically.
+  const shape = {
+    name: "lab-shape",
+    cells: [
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+      { x: 1, y: 1 },
+      { x: 2, y: 1 },
+      { x: 3, y: 1 },
+      { x: 3, y: 2 },
+    ],
+  };
+  assert.deepEqual(shapeSymmetryGroup(shape), [0, 2]);
+  const identity: TessellationDef = {
+    name: "identity",
+    shape,
+    basis1: { x: 4, y: 1 },
+    basis2: { x: 2, y: -1 },
+    placements: [{ offset: { x: 0, y: 0 }, orientation: 0 }],
+  };
+  const rotated: TessellationDef = {
+    ...identity,
+    placements: [{ offset: { x: 3, y: 2 }, orientation: 2 }],
+  };
+  assert.ok(sameTessellation(identity, rotated));
 });
 
 test("the L-tromino brick has a 180-degree symmetry", () => {

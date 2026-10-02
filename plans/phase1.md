@@ -274,5 +274,9 @@ validator is trusted.
   and a true per-tile symmetry class, which the Lab colours and reports. The
   finder now keeps only **single-orbit** tilings (all tiles
   symmetry-equivalent) and orients each result so the drawn shape appears, at
-  the origin, in the orientation it was drawn. Follow-ups from the design doc:
-  energy budgets, max extent, and the anti-snowball severing mechanic.
+  the origin, in the orientation it was drawn. Dedupe was then rewritten to
+  canonicalise the tiling's **cell sets** (not orientation labels, which are
+  ambiguous for a shape with its own symmetry, and which lose each tile's phase
+  within the fundamental domain). The finder also generates one orientation per
+  shape-symmetry class. Follow-ups from the design doc: energy budgets, max
+  extent, and the anti-snowball severing mechanic.

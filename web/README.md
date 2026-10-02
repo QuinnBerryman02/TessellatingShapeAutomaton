@@ -106,21 +106,28 @@ Keep it `u32` per cell so the sim can grow into more fields without a rewrite.
 
 ### Symmetry and equivalence (`solver/symmetry.ts`)
 
-A tiling's **symmetry group** is every isometry that maps it to itself, and its
-**translation subgroup** is a sublattice of Z² (possibly larger than the basis
-the tiling was described with). The analysis finds that subgroup with a cheap
-check on the plane modulo the lattice, reduces it to a Hermite basis, and then
-finds the point symmetries (a D4 element plus an integer translation).
+A tiling is a **set of tile cell-sets**, periodic under a **translation
+subgroup** L* — a sublattice of Z², possibly coarser than the basis the tiling
+was described with. The analysis finds L* by testing translation candidates
+against the cell sets, reduces it to a Hermite basis, and then finds the point
+symmetries (a D4 element plus an integer translation).
 
-- **Dedupe.** `canonicalSignature` works on the *primitive* translation
-  lattice: it partitions the primitive cell into tiles and minimises that
-  partition over the choice of origin and the eight square symmetries. Two
-  descriptions of one tiling — including a supercell description — therefore
-  collapse to a single result.
+The whole analysis works on **cell sets, not orientation labels**. That matters
+in two ways: a shape that is itself symmetric (e.g. 180°-rotational) can write
+the same tile with different labels, and a tile's *phase* within the fundamental
+domain is only stored by its actual cells, not by their residues modulo L*.
+
+- **Dedupe.** `canonicalSignature` is built from the tiles' cell sets on L*,
+  minimised over the choice of origin and the eight square symmetries. Two
+  descriptions of one tiling — a supercell, a different orientation label, or a
+  translated copy — therefore collapse to a single result.
 - **Tile classes.** Tiles fall into **orbits** under the symmetry group. Two
   tiles in different orbits are the same shape but not symmetry-equivalent
   (the game's "two shape tessellations"); within an orbit the D4 part of a
   symmetry carrying the reference tile to a tile is its **class**.
+- **Shape symmetry.** `shapeSymmetryGroup` gives the D4 elements that fix a
+  shape up to translation. The finder generates one orientation per class, so a
+  180°-symmetric shape does not produce doubled solutions.
 
 ## Lab (M2)
 

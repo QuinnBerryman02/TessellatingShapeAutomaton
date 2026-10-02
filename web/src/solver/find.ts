@@ -8,7 +8,11 @@ import {
   type TessellationDef,
 } from "../model/tessellation.ts";
 import { canonicalSignature } from "./canonical.ts";
-import { analyzeSymmetry } from "./symmetry.ts";
+import {
+  analyzeSymmetry,
+  canonicalOrientation,
+  shapeSymmetryGroup,
+} from "./symmetry.ts";
 import { validateTessellation } from "./validate.ts";
 
 export interface FindOptions {
@@ -53,18 +57,20 @@ function normalizeCells(cells: readonly Vec2[]): Vec2[] {
   return cells.map((c) => ({ x: c.x - minX, y: c.y - minY }));
 }
 
-/** The distinct ways the shape can be oriented, ignoring its own symmetries. */
+/**
+ * One representative per orientation up to the shape's own symmetry. A shape
+ * that is (say) 180-degrees symmetric would otherwise produce two labels for
+ * the same physical tile and duplicate every solution.
+ */
 function uniqueOrientations(shape: ShapeDef): D4[] {
-  const seen = new Set<string>();
+  const group = shapeSymmetryGroup(shape);
+  const seen = new Set<D4>();
   const result: D4[] = [];
   for (let g = 0; g < D4_NAMES.length; g++) {
-    const key = transformedCells(shape, g as D4)
-      .map(keyVec)
-      .sort()
-      .join("|");
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(g as D4);
+    const representative = canonicalOrientation(group, g as D4);
+    if (seen.has(representative)) continue;
+    seen.add(representative);
+    result.push(representative);
   }
   return result;
 }

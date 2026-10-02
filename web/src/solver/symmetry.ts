@@ -1,9 +1,10 @@
 import { applyD4, composeD4, D4_NAMES, type D4 } from "../core/d4.ts";
 import { addVec, keyVec, subVec, type Vec2 } from "../core/vec2.ts";
-import { transformedCells } from "../model/shape.ts";
+import { transformedCells, type ShapeDef } from "../model/shape.ts";
 import {
   reduceModLattice,
   transformTessellation,
+  type Placement,
   type TessellationDef,
 } from "../model/tessellation.ts";
 import { isLatticeVector } from "./validate.ts";
@@ -11,37 +12,24 @@ import { isLatticeVector } from "./validate.ts";
 /**
  * The symmetry group of a tessellation, and the classification of its tiles.
  *
- * A tessellation's **symmetry group** G is every isometry that maps the tiling
- * onto itself. Its **translation subgroup** L* (a sublattice of Z², possibly
- * bigger than the basis the tiling was described with) is the set of pure
- * translations in G. The quotient G / L* is a subgroup of D4, the tile's
- * point symmetries.
+ * A tiling is a **set of tile cell-sets** in the plane, periodic under a lattice
+ * L*. Everything here works on those cell sets rather than on placement
+ * orientations: an orientation label is not part of a tile's identity (a shape
+ * that is itself symmetric can be written with several labels for the same
+ * tile), and the actual cells — not just their residues modulo L* — are needed
+ * to know a tile's phase within the fundamental domain.
  *
- * Tiles fall into **orbits** under G: two tiles are symmetry-equivalent (the
- * same "shape tessellation" in the game's terms) iff some g in G carries one to
- * the other. Within an orbit, the class of a tile is the D4 part of a symmetry
- * carrying the reference tile to it. That is the label the renderer colours by.
+ * The **symmetry group** G is every isometry mapping the tiling onto itself; its
+ * **translation subgroup** is L* (a sublattice of Z², possibly coarser than the
+ * basis the tiling was described with). Tiles fall into **orbits** under G, and
+ * within an orbit the D4 part of a symmetry carrying the reference tile to a
+ * tile is its class.
  */
 
 export interface TileInstance {
   readonly placement: number;
   readonly m: number;
   readonly n: number;
-}
-
-interface TileInfo {
-  readonly placement: number;
-  readonly orientation: D4;
-  readonly base: Vec2;
-}
-
-interface TorusData {
-  readonly basis1: Vec2;
-  readonly basis2: Vec2;
-  /** Canonical representatives of Z² / L, one per coset. */
-  readonly residues: Vec2[];
-  /** Tile covering each residue cell. */
-  readonly info: Map<string, TileInfo>;
 }
 
 /** The tile instance covering a cell, or undefined if the tiling misses it. */
@@ -88,36 +76,358 @@ function instanceBase(def: TessellationDef, instance: TileInstance): Vec2 {
   );
 }
 
-/** Canonical representatives of Z²/L plus the tile covering each one. */
-function torusData(def: TessellationDef, basis1: Vec2, basis2: Vec2): TorusData {
-  // The Hermite basis (a, 0), (b, c) gives a fundamental domain that is the
-  // rectangle [0, a) x [0, c), so those a*c points are exactly one
-  // representative per coset. Much cheaper than scanning a bounding box.
-  const [h1, h2] = hermiteBasis([basis1, basis2]);
-  const info = new Map<string, TileInfo>();
-  const residues: Vec2[] = [];
-  for (let y = 0; y < h2.y; y++) {
-    for (let x = 0; x < h1.x; x++) {
-      const rep = reduceModLattice({ x, y }, basis1, basis2);
-      const key = keyVec(rep);
-      if (info.has(key)) continue;
-      const instance = tileAt(def, rep);
-      if (!instance) continue;
-      info.set(key, {
-        placement: instance.placement,
-        orientation: def.placements[instance.placement].orientation,
-        base: instanceBase(def, instance),
-      });
-      residues.push(rep);
+function placementCells(def: TessellationDef, p: number): Vec2[] {
+  return transformedCells(
+    def.shape,
+    def.placements[p].orientation,
+  ).map((c) => addVec(c, def.placements[p].offset));
+}
+
+function instanceCells(def: TessellationDef, instance: TileInstance): Vec2[] {
+  const base = instanceBase(def, instance);
+  return transformedCells(
+    def.shape,
+    def.placements[instance.placement].orientation,
+  ).map((c) => addVec(c, base));
+}
+
+function cellsKey(cells: readonly Vec2[]): string {
+  return cells.map(keyVec).sort().join("|");
+}
+
+/** True when `cells` is exactly one of the tiling's tiles. */
+function containsTile(def: TessellationDef, cells: readonly Vec2[]): boolean {
+  const instance = tileAt(def, cells[0]);
+  if (!instance) return false;
+  return cellsKey(instanceCells(def, instance)) === cellsKey(cells);
+}
+
+function preservesTranslation(def: TessellationDef, v: Vec2): boolean {
+  for (let p = 0; p < def.placements.length; p++) {
+    if (!containsTile(def, placementCells(def, p).map((c) => addVec(c, v)))) {
+      return false;
     }
   }
-  return { basis1, basis2, residues, info };
+  return true;
+}
+
+function preservesIsometry(def: TessellationDef, g: D4, t: Vec2): boolean {
+  for (let p = 0; p < def.placements.length; p++) {
+    const image = placementCells(def, p).map((c) =>
+      addVec(applyD4(g, c), t),
+    );
+    if (!containsTile(def, image)) return false;
+  }
+  return true;
+}
+
+export interface TranslationLattice {
+  readonly basis1: Vec2;
+  readonly basis2: Vec2;
+  /** Non-identity translations (mod the given basis) that preserve the tiling. */
+  readonly extraTranslations: Vec2[];
+}
+
+/** The full translation subgroup of the symmetry group, as a reduced basis. */
+export function translationLattice(def: TessellationDef): TranslationLattice {
+  const [h1, h2] = hermiteBasis([def.basis1, def.basis2]);
+  const extraTranslations: Vec2[] = [];
+  for (let y = 0; y < h2.y; y++) {
+    for (let x = 0; x < h1.x; x++) {
+      if (x === 0 && y === 0) continue;
+      if (preservesTranslation(def, { x, y })) extraTranslations.push({ x, y });
+    }
+  }
+  const [basis1, basis2] = hermiteBasis([
+    def.basis1,
+    def.basis2,
+    ...extraTranslations,
+  ]);
+  return { basis1, basis2, extraTranslations };
+}
+
+export interface PointSymmetry {
+  readonly g: D4;
+  readonly t: Vec2;
+}
+
+/** All non-translation symmetries: one representative `(g, t)` per D4 element. */
+export function pointSymmetries(def: TessellationDef): PointSymmetry[] {
+  const { basis1, basis2 } = translationLattice(def);
+  const reference = tileAt(def, { x: 0, y: 0 });
+  if (!reference) return [];
+  const referenceCells = instanceCells(def, reference);
+
+  const result: PointSymmetry[] = [];
+  for (let gi = 0; gi < D4_NAMES.length; gi++) {
+    const g = gi as D4;
+    if (
+      !isLatticeVector(applyD4(g, basis1), basis1, basis2) ||
+      !isLatticeVector(applyD4(g, basis2), basis1, basis2)
+    ) {
+      continue;
+    }
+    for (let q = 0; q < def.placements.length; q++) {
+      const target = placementCells(def, q);
+      const t = subVec(target[0], applyD4(g, referenceCells[0]));
+      if (preservesIsometry(def, g, t)) {
+        result.push({ g, t });
+        break;
+      }
+    }
+  }
+  return result;
+}
+
+export interface TileClass {
+  readonly orbit: number;
+  readonly label: D4;
+}
+
+export interface SymmetryAnalysis {
+  readonly basis1: Vec2;
+  readonly basis2: Vec2;
+  readonly pointSymmetries: PointSymmetry[];
+  readonly orbitCount: number;
+  classAt(cell: Vec2): TileClass | undefined;
+  slotAt(cell: Vec2): number;
+  slotFor(orientation: D4, base: Vec2): number;
+}
+
+/**
+ * Groups the tiles into orbits under the full symmetry group and labels each by
+ * the D4 part of a symmetry carrying the reference tile to it.
+ */
+export function analyzeSymmetry(def: TessellationDef): SymmetryAnalysis {
+  const { basis1, basis2 } = translationLattice(def);
+  const point = pointSymmetries(def);
+
+  // One representative tile per primitive cell, keyed by residue set.
+  const residueKeyOf = (cells: readonly Vec2[]): string =>
+    cells
+      .map((c) => keyVec(reduceModLattice(c, basis1, basis2)))
+      .sort()
+      .join("|");
+  const tiles = new Map<string, { cells: Vec2[]; label: D4; orbit: number }>();
+  const reference = tileAt(def, { x: 0, y: 0 });
+  const referenceCells = reference ? instanceCells(def, reference) : [];
+
+  const addTile = (
+    cells: Vec2[],
+    label: D4,
+    orbit: number,
+  ): void => {
+    const key = residueKeyOf(cells);
+    if (!tiles.has(key)) tiles.set(key, { cells, label, orbit });
+  };
+
+  if (reference) addTile(referenceCells, 0, 0);
+
+  // BFS over the point symmetries to find the reference orbit and its labels.
+  const queue: Vec2[][] = reference ? [referenceCells] : [];
+  while (queue.length > 0) {
+    const current = queue.shift() as Vec2[];
+    const currentKey = residueKeyOf(current);
+    const currentLabel = tiles.get(currentKey)?.label ?? 0;
+    for (const { g, t } of point) {
+      const image = current.map((c) => addVec(applyD4(g, c), t));
+      const imageKey = residueKeyOf(image);
+      if (tiles.has(imageKey)) continue;
+      addTile(image, composeD4(currentLabel, g), 0);
+      queue.push(image);
+    }
+  }
+
+  // Any tile not reachable from the reference starts a new orbit.
+  let orbitCount = tiles.size > 0 ? 1 : 0;
+  for (let p = 0; p < def.placements.length; p++) {
+    const cells = placementCells(def, p);
+    const key = residueKeyOf(cells);
+    if (tiles.has(key)) continue;
+    addTile(cells, 0, orbitCount++);
+    const stack: Vec2[][] = [cells];
+    while (stack.length > 0) {
+      const current = stack.pop() as Vec2[];
+      for (const { g, t } of point) {
+        const image = current.map((c) => addVec(applyD4(g, c), t));
+        const imageKey = residueKeyOf(image);
+        if (tiles.has(imageKey)) continue;
+        addTile(image, 0, orbitCount - 1);
+        stack.push(image);
+      }
+    }
+  }
+
+  const slotOf = (key: string): number => {
+    const tile = tiles.get(key);
+    return tile ? (tile.label + 8 * tile.orbit) % 16 : 0;
+  };
+
+  const classAt = (cell: Vec2): TileClass | undefined => {
+    const instance = tileAt(def, cell);
+    if (!instance) return undefined;
+    const tile = tiles.get(residueKeyOf(instanceCells(def, instance)));
+    return tile ? { orbit: tile.orbit, label: tile.label } : undefined;
+  };
+
+  return {
+    basis1,
+    basis2,
+    pointSymmetries: point,
+    orbitCount,
+    classAt,
+    slotAt: (cell: Vec2): number => {
+      const instance = tileAt(def, cell);
+      return instance
+        ? slotOf(residueKeyOf(instanceCells(def, instance)))
+        : 0;
+    },
+    slotFor: (orientation: D4, base: Vec2): number => {
+      const cells = transformedCells(def.shape, orientation).map((c) =>
+        addVec(c, base),
+      );
+      return slotOf(residueKeyOf(cells));
+    },
+  };
+}
+
+/** The symmetry group of a shape, up to translation (a subgroup of D4). */
+export function shapeSymmetryGroup(shape: ShapeDef): D4[] {
+  const base = normalizedShapeKey(shape.cells);
+  const group: D4[] = [];
+  for (let g = 0; g < D4_NAMES.length; g++) {
+    if (normalizedShapeKey(transformedCells(shape, g as D4)) === base) {
+      group.push(g as D4);
+    }
+  }
+  return group;
+}
+
+function normalizedShapeKey(cells: readonly Vec2[]): string {
+  let minX = Infinity;
+  let minY = Infinity;
+  for (const c of cells) {
+    if (c.x < minX) minX = c.x;
+    if (c.y < minY) minY = c.y;
+  }
+  return cells
+    .map((c) => `${c.x - minX},${c.y - minY}`)
+    .sort()
+    .join("|");
+}
+
+/** The smallest D4 element representing `orientation` for a shape. */
+export function canonicalOrientation(group: readonly D4[], orientation: D4): D4 {
+  let best = orientation;
+  for (const s of group) {
+    const candidate = composeD4(s, orientation);
+    if (candidate < best) best = candidate;
+  }
+  return best;
+}
+
+/** The translation making `applyD4(s, shape) + t` equal the shape. */
+function shapeSymmetryTranslation(shape: ShapeDef, s: D4): Vec2 {
+  const moved = transformedCells(shape, s);
+  let movedMinX = Infinity;
+  let movedMinY = Infinity;
+  let baseMinX = Infinity;
+  let baseMinY = Infinity;
+  for (const c of moved) {
+    if (c.x < movedMinX) movedMinX = c.x;
+    if (c.y < movedMinY) movedMinY = c.y;
+  }
+  for (const c of shape.cells) {
+    if (c.x < baseMinX) baseMinX = c.x;
+    if (c.y < baseMinY) baseMinY = c.y;
+  }
+  return { x: movedMinX - baseMinX, y: movedMinY - baseMinY };
+}
+
+/** Rewrites a placement to the smallest equivalent orientation. */
+function canonicalizePlacement(
+  shape: ShapeDef,
+  group: readonly D4[],
+  placement: Placement,
+): Placement {
+  const orientation = placement.orientation;
+  let bestS: D4 = 0;
+  let best = composeD4(0, orientation);
+  for (const s of group) {
+    const candidate = composeD4(s, orientation);
+    if (candidate < best) {
+      best = candidate;
+      bestS = s;
+    }
+  }
+  if (bestS === 0 && best === orientation) return placement;
+  const translation = shapeSymmetryTranslation(shape, bestS);
+  return {
+    orientation: best,
+    offset: subVec(placement.offset, applyD4(orientation, translation)),
+  };
+}
+
+/**
+ * A canonical signature, invariant under translation, the symmetries of the
+ * square, extra translational symmetry, and the orientation labels a
+ * description happens to use. It is built from the tiling's tiles as cell sets
+ * on its primitive lattice.
+ */
+export function canonicalSignature(def: TessellationDef): string {
+  let best: string | undefined;
+  for (let gi = 0; gi < D4_NAMES.length; gi++) {
+    const transformed = transformTessellation(def, gi as D4);
+    const signature = primitivizedSignature(transformed);
+    if (best === undefined || signature < best) best = signature;
+  }
+  return best as string;
+}
+
+function primitivizedSignature(def: TessellationDef): string {
+  const lattice = translationLattice(def);
+  const [h1, h2] = hermiteBasis([lattice.basis1, lattice.basis2]);
+  const group = shapeSymmetryGroup(def.shape);
+
+  const reduced: Placement[] = [];
+  const seen = new Set<string>();
+  for (const placement of def.placements) {
+    const canonical = canonicalizePlacement(def.shape, group, placement);
+    const offset = reduceModLattice(canonical.offset, lattice.basis1, lattice.basis2);
+    const key = `${offset.x},${offset.y}:${canonical.orientation}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    reduced.push({ offset, orientation: canonical.orientation });
+  }
+
+  const latticeKey = `${lattice.basis1.x},${lattice.basis1.y};${lattice.basis2.x},${lattice.basis2.y}`;
+  let best: string | undefined;
+  for (let y = 0; y < h2.y; y++) {
+    for (let x = 0; x < h1.x; x++) {
+      const encoded = reduced
+        .map((p) => {
+          const offset = reduceModLattice(
+            addVec(p.offset, { x, y }),
+            lattice.basis1,
+            lattice.basis2,
+          );
+          return `${offset.x},${offset.y}:${p.orientation}`;
+        })
+        .sort()
+        .join(";");
+      const signature = `${latticeKey}|${encoded}`;
+      if (best === undefined || signature < best) best = signature;
+    }
+  }
+  return best as string;
+}
+
+export function sameTessellation(a: TessellationDef, b: TessellationDef): boolean {
+  return canonicalSignature(a) === canonicalSignature(b);
 }
 
 /** A basis of the lattice generated by `gens` (Hermite normal form). */
 function hermiteBasis(gens: readonly Vec2[]): [Vec2, Vec2] {
-  // c = gcd of the y-coordinates, with `w` an integer combination of the
-  // generators whose y-coordinate is exactly c.
   let c = 0;
   let w: Vec2 = { x: 0, y: 0 };
   for (const g of gens) {
@@ -135,7 +445,6 @@ function hermiteBasis(gens: readonly Vec2[]): [Vec2, Vec2] {
   }
   if (c === 0) throw new Error("lattice has rank < 2");
 
-  // Elements with y = 0 have x-coordinates forming aZ; collect candidates.
   let a = 0;
   for (const g of gens) {
     if (g.y === 0) {
@@ -163,305 +472,4 @@ function extGcd(a: number, b: number): [number, number] {
   if (b === 0) return [1, 0];
   const [x, y] = extGcd(b, a % b);
   return [y, x - Math.floor(a / b) * y];
-}
-
-export interface TranslationLattice {
-  readonly basis1: Vec2;
-  readonly basis2: Vec2;
-  /** Non-identity translations (mod the given basis) that preserve the tiling. */
-  readonly extraTranslations: Vec2[];
-}
-
-/** The full translation subgroup of the symmetry group, as a reduced basis. */
-export function translationLattice(def: TessellationDef): TranslationLattice {
-  const data = torusData(def, def.basis1, def.basis2);
-  const extraTranslations = data.residues.filter(
-    (v) => (v.x !== 0 || v.y !== 0) && preservesTranslation(data, v),
-  );
-  const gens = [def.basis1, def.basis2, ...extraTranslations];
-  const [basis1, basis2] = hermiteBasis(gens);
-  return { basis1, basis2, extraTranslations };
-}
-
-function preservesTranslation(data: TorusData, v: Vec2): boolean {
-  for (const r of data.residues) {
-    const a = data.info.get(keyVec(r));
-    const b = data.info.get(
-      keyVec(reduceModLattice(addVec(r, v), data.basis1, data.basis2)),
-    );
-    if (!a || !b) return false;
-    if (a.orientation !== b.orientation) return false;
-    if (!isLatticeVector(subVec(subVec(b.base, a.base), v), data.basis1, data.basis2)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-export interface PointSymmetry {
-  readonly g: D4;
-  readonly t: Vec2;
-  /** Tile that the reference tile (covering the origin) maps to. */
-  readonly target: Vec2;
-}
-
-/** All non-translation symmetries: one representative `(g, t)` per D4 element. */
-export function pointSymmetries(def: TessellationDef): PointSymmetry[] {
-  const { basis1, basis2 } = translationLattice(def);
-  const data = torusData(def, basis1, basis2);
-  const reference = data.info.get("0,0");
-  if (!reference) return [];
-
-  const tiles = uniqueTiles(data, basis1, basis2);
-  const result: PointSymmetry[] = [];
-  for (let gi = 0; gi < D4_NAMES.length; gi++) {
-    const g = gi as D4;
-    // The operation must normalise the translation lattice.
-    if (
-      !isLatticeVector(applyD4(g, basis1), basis1, basis2) ||
-      !isLatticeVector(applyD4(g, basis2), basis1, basis2)
-    ) {
-      continue;
-    }
-    for (const target of tiles) {
-      if (target.orientation !== composeD4(reference.orientation, g)) continue;
-      const t = subVec(target.base, applyD4(g, reference.base));
-      if (preservesIsometry(data, g, t)) {
-        result.push({ g, t, target: { ...target.base } });
-        break;
-      }
-    }
-  }
-  return result;
-}
-
-function preservesIsometry(data: TorusData, g: D4, t: Vec2): boolean {
-  for (const r of data.residues) {
-    const a = data.info.get(keyVec(r));
-    if (!a) return false;
-    const moved = addVec(applyD4(g, r), t);
-    const b = data.info.get(
-      keyVec(reduceModLattice(moved, data.basis1, data.basis2)),
-    );
-    if (!b) return false;
-    if (b.orientation !== composeD4(a.orientation, g)) return false;
-    const image = addVec(applyD4(g, a.base), t);
-    if (!isLatticeVector(subVec(b.base, image), data.basis1, data.basis2)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function uniqueTiles(
-  data: TorusData,
-  basis1: Vec2,
-  basis2: Vec2,
-): TileInfo[] {
-  const seen = new Map<string, TileInfo>();
-  for (const tile of data.info.values()) {
-    const key = `${tile.orientation}:${keyVec(reduceModLattice(tile.base, basis1, basis2))}`;
-    if (!seen.has(key)) seen.set(key, tile);
-  }
-  return [...seen.values()];
-}
-
-export interface TileClass {
-  readonly orbit: number;
-  readonly label: D4;
-}
-
-export interface SymmetryAnalysis {
-  readonly basis1: Vec2;
-  readonly basis2: Vec2;
-  readonly pointSymmetries: PointSymmetry[];
-  readonly orbitCount: number;
-  /** Class of the tile instance covering `cell` (or undefined if none). */
-  classAt(cell: Vec2): TileClass | undefined;
-  /** Palette slot (0..15) for a tile, combining orbit and D4 label. */
-  slotAt(cell: Vec2): number;
-  /** Palette slot for a tile by its orientation and base point. */
-  slotFor(orientation: D4, base: Vec2): number;
-}
-
-/**
- * Groups the tiles into orbits under the full symmetry group and labels each by
- * the D4 part of a symmetry carrying the reference tile to it.
- */
-export function analyzeSymmetry(def: TessellationDef): SymmetryAnalysis {
-  const { basis1, basis2 } = translationLattice(def);
-  const data = torusData(def, basis1, basis2);
-  const point = pointSymmetries(def);
-
-  // Node key for a tile: orientation plus its base modulo the translation lattice.
-  const nodeKey = (orientation: D4, base: Vec2): string =>
-    `${orientation}:${keyVec(reduceModLattice(base, basis1, basis2))}`;
-  const referenceKey = nodeKey(
-    data.info.get("0,0")?.orientation ?? 0,
-    data.info.get("0,0")?.base ?? { x: 0, y: 0 },
-  );
-
-  // BFS over the point symmetries to find reachable tiles and their labels.
-  const label = new Map<string, D4>();
-  label.set(referenceKey, 0);
-  const queue: { key: string; orientation: D4; base: Vec2 }[] = [];
-  const refTile = uniqueTiles(data, basis1, basis2).find(
-    (tile) => nodeKey(tile.orientation, tile.base) === referenceKey,
-  );
-  if (refTile) {
-    queue.push({
-      key: referenceKey,
-      orientation: refTile.orientation,
-      base: refTile.base,
-    });
-  }
-  while (queue.length > 0) {
-    const current = queue.shift() as { key: string; orientation: D4; base: Vec2 };
-    const currentLabel = label.get(current.key) as D4;
-    for (const { g, t } of point) {
-      const image = addVec(applyD4(g, current.base), t);
-      const movedKey = nodeKey(composeD4(current.orientation, g), image);
-      if (label.has(movedKey)) continue;
-      const next = composeD4(currentLabel, g);
-      label.set(movedKey, next);
-      const tile = uniqueTiles(data, basis1, basis2).find(
-        (candidate) => nodeKey(candidate.orientation, candidate.base) === movedKey,
-      );
-      queue.push({
-        key: movedKey,
-        orientation: tile?.orientation ?? composeD4(current.orientation, g),
-        base: tile?.base ?? image,
-      });
-    }
-  }
-
-  // Orbits: connected components of the point-symmetry action on all tiles.
-  const allTiles = uniqueTiles(data, basis1, basis2);
-  const orbitOf = new Map<string, number>();
-  let orbitCount = 0;
-  for (const tile of allTiles) {
-    const startKey = nodeKey(tile.orientation, tile.base);
-    if (orbitOf.has(startKey)) continue;
-    const orbit = orbitCount++;
-    const stack = [tile];
-    orbitOf.set(startKey, orbit);
-    while (stack.length > 0) {
-      const current = stack.pop() as TileInfo;
-      for (const { g, t } of point) {
-        const image = addVec(applyD4(g, current.base), t);
-        const key = nodeKey(composeD4(current.orientation, g), image);
-        if (orbitOf.has(key)) continue;
-        orbitOf.set(key, orbit);
-        const match = allTiles.find(
-          (candidate) => nodeKey(candidate.orientation, candidate.base) === key,
-        );
-        if (match) stack.push(match);
-      }
-    }
-  }
-
-  const classForTile = (tile: TileInfo): TileClass => ({
-    orbit: orbitOf.get(nodeKey(tile.orientation, tile.base)) ?? 0,
-    label: label.get(nodeKey(tile.orientation, tile.base)) ?? 0,
-  });
-
-  const classAt = (cell: Vec2): TileClass | undefined => {
-    const rep = reduceModLattice(cell, basis1, basis2);
-    const tile = data.info.get(keyVec(rep));
-    return tile ? classForTile(tile) : undefined;
-  };
-
-  const slotOfKey = (key: string): number => {
-    // Single-orbit tilings get the 8 D4 tones; further orbits reuse the palette
-    // with a shifted base.
-    return ((label.get(key) ?? 0) + 8 * (orbitOf.get(key) ?? 0)) % 16;
-  };
-
-  return {
-    basis1,
-    basis2,
-    pointSymmetries: point,
-    orbitCount,
-    classAt,
-    slotAt: (cell: Vec2): number => {
-      const tile = data.info.get(
-        keyVec(reduceModLattice(cell, basis1, basis2)),
-      );
-      return tile ? slotOfKey(nodeKey(tile.orientation, tile.base)) : 0;
-    },
-    slotFor: (orientation: D4, base: Vec2): number =>
-      slotOfKey(nodeKey(orientation, base)),
-  };
-}
-
-/**
- * A canonical signature for a tessellation, invariant under translation, the
- * symmetries of the square, and any extra translational symmetry of the tiling.
- *
- * It is built on the **primitive translation lattice**: the plane modulo that
- * lattice is partitioned into tiles, and the partition (with orientations,
- * minimised over the choice of origin) is the signature. Describing the same
- * tiling with a larger supercell therefore collapses to the same signature.
- */
-export function canonicalSignature(def: TessellationDef): string {
-  let best: string | undefined;
-  for (let gi = 0; gi < D4_NAMES.length; gi++) {
-    const g = gi as D4;
-    const transformed = transformTessellation(def, g);
-    // Recompute the transformed tiling's own translation lattice: rotating the
-    // basis directly can skew it, which would change `reduceModLattice`'s
-    // coset representatives and produce a different signature for the same
-    // tiling.
-    const lattice = translationLattice(transformed);
-    const signature = torusSignature(
-      transformed,
-      lattice.basis1,
-      lattice.basis2,
-    );
-    if (best === undefined || signature < best) best = signature;
-  }
-  return best as string;
-}
-
-function torusSignature(
-  def: TessellationDef,
-  basis1: Vec2,
-  basis2: Vec2,
-): string {
-  const data = torusData(def, basis1, basis2);
-  // Group residues by the tile that covers them.
-  const tiles = new Map<string, { orientation: D4; residues: Vec2[] }>();
-  for (const residue of data.residues) {
-    const tile = data.info.get(keyVec(residue));
-    if (!tile) continue;
-    const key = `${tile.orientation}:${keyVec(reduceModLattice(tile.base, basis1, basis2))}`;
-    let entry = tiles.get(key);
-    if (!entry) {
-      entry = { orientation: tile.orientation, residues: [] };
-      tiles.set(key, entry);
-    }
-    entry.residues.push(residue);
-  }
-
-  // Minimise over the choice of origin (gauge) within the lattice.
-  let best: string | undefined;
-  for (const shift of data.residues) {
-    const encoded = [...tiles.values()]
-      .map((tile) => {
-        const cells = tile.residues
-          .map((r) => reduceModLattice(addVec(r, shift), basis1, basis2))
-          .map(keyVec)
-          .sort()
-          .join("|");
-        return `${tile.orientation}:${cells}`;
-      })
-      .sort()
-      .join(";");
-    if (best === undefined || encoded < best) best = encoded;
-  }
-  return best as string;
-}
-
-export function sameTessellation(a: TessellationDef, b: TessellationDef): boolean {
-  return canonicalSignature(a) === canonicalSignature(b);
 }
