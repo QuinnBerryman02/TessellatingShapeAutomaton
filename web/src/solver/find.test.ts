@@ -4,7 +4,7 @@ import { transformedCells } from "../model/shape.ts";
 import { L_TROMINO, L_TROMINO_BRICK, UNIT_SQUARE } from "../model/builtins.ts";
 import { sameTessellation } from "./canonical.ts";
 import { findTessellations } from "./find.ts";
-import { analyzeSymmetry } from "./symmetry.ts";
+import { analyzeSymmetry, wallpaperGroup } from "./symmetry.ts";
 
 test("finds the L-tromino brick", () => {
   const found = findTessellations(L_TROMINO, {
@@ -49,6 +49,29 @@ test("results are single-orbit tilings", () => {
       "a multi-orbit tiling slipped through",
     );
   }
+});
+
+test("the L-tetromino finds both mirror and glide tilings", () => {
+  const shape = {
+    name: "L4",
+    cells: [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+      { x: 2, y: 1 },
+    ],
+  };
+  const found = findTessellations(shape, {
+    maxBasis: 4,
+    maxCovolume: 16,
+    maxPlacements: 8,
+    maxResults: 64,
+  });
+  const groups = new Set(found.map((def) => wallpaperGroup(def)));
+  // A reflection whose translations are all glides is pg, not pm.
+  assert.ok(groups.has("pg"), `expected pg among ${[...groups].join(",")}`);
+  assert.ok(groups.has("pm"), `expected pm among ${[...groups].join(",")}`);
+  assert.ok(groups.has("p1"), `expected p1 among ${[...groups].join(",")}`);
 });
 
 test("results contain the drawn shape, in its drawn orientation, at the origin", () => {

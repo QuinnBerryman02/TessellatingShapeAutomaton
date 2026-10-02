@@ -132,9 +132,10 @@ domain is only stored by its actual cells, not by their residues modulo L*.
   180°-symmetric shape does not produce doubled solutions.
 - **Wallpaper group.** `wallpaperGroup` names the tiling's symmetry group.
   Because the tiles live on Z² only the square-lattice symbols are reachable
-  (p1, p2, pm, cm, pmm, pmg, pgg, cmm, p4, p4m, p4g): the point group and the
-  lattice metric choose the family, and a mirror-vs-glide test on the
-  reflection's translation separates the two possibilities in each. The Lab
+  (p1, p2, pm, pg, cm, pmm, pmg, pgg, cmm, p4, p4m, p4g): the point group and
+  the lattice metric choose the family, then a mirror-vs-glide test on each
+  reflection's translation separates the rest (e.g. pm from pg, pmm/pmg/pgg,
+  p4m from p4g). The Lab
   shows the tile's orientation count under the drawing and each result's
   wallpaper symbol, and the main HUD repeats them for the selected tiling.
 

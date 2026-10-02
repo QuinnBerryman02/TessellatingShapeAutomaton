@@ -396,10 +396,10 @@ function latticeType(
  * The wallpaper group of a tiling, as its standard symbol.
  *
  * Since the tiles live on Z², only the square-lattice groups are reachable:
- * p1, p2, pm, cm, pmm, pmg, pgg, cmm, p4, p4m, p4g. The point group and the
- * lattice metric pick the group; the reflection/glide check separates the
- * mirror-bearing symbols (pm/pmm/pmg/p4m) from the glide-bearing ones
- * (cm/cmm/pgg/p4g).
+ * p1, p2, pm, pg, cm, pmm, pmg, pgg, cmm, p4, p4m, p4g. The point group and
+ * the lattice metric pick the family; the mirror/glide check then separates
+ * the mirror-bearing symbols (pm/pmm/pmg/p4m) from the glide-bearing ones
+ * (pg/pgg/p4g) and the centred ones (cm/cmm).
  */
 export function wallpaperGroup(def: TessellationDef): string {
   const lattice = translationLattice(def);
@@ -426,7 +426,11 @@ export function wallpaperGroup(def: TessellationDef): string {
     if (mirrors === 1) return "pmg";
     return "pgg";
   }
-  if (reflections.length === 1) return type === "rhombic" ? "cm" : "pm";
+  if (reflections.length === 1) {
+    const g = reflections[0];
+    if (!isMirror(g)) return "pg";
+    return type === "rhombic" ? "cm" : "pm";
+  }
   return "p1";
 }
 
