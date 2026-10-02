@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { OWNER_LAB, ownerOf } from "../core/cell.ts";
+import { OWNER_LAB, ownerOf, tagOf } from "../core/cell.ts";
 import { L_TROMINO_BRICK, UNIT_SQUARE } from "./builtins.ts";
 import {
   covolume,
@@ -25,6 +25,20 @@ test("the L-tromino brick leaves no holes", () => {
   });
   const holes = Array.from(raster.cells).filter((v) => v === 0).length;
   assert.equal(holes, 0);
+});
+
+test("the raster tags tile instances so boundaries can be drawn", () => {
+  const raster = rasterize(L_TROMINO_BRICK, {
+    minX: 0,
+    minY: 0,
+    maxX: 11,
+    maxY: 11,
+  });
+  const tags = new Set<number>();
+  for (const cell of raster.cells) {
+    if (cell !== 0) tags.add(tagOf(cell));
+  }
+  assert.ok(tags.size > 1, `expected several tile tags, got ${tags.size}`);
 });
 
 test("covolume is the fundamental cell area", () => {

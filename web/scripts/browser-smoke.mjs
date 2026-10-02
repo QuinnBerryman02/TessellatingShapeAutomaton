@@ -125,13 +125,32 @@ try {
     };
   });
 
+  // Toggle tile outlines and the symmetry palette; the renderer must accept it.
+  const view = await page.evaluate(async () => {
+    const api = window.__tsaView;
+    if (!api) return { error: "window.__tsaView is missing" };
+    api.setBorders(true);
+    api.setSymmetry(true);
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    return { borders: api.borders(), symmetry: api.symmetry() };
+  });
+
   if (process.env.SHOT) {
     await page.screenshot({ path: process.env.SHOT });
+  }
+  if (process.env.SHOT_ZOOM) {
+    await page.evaluate(async () => {
+      window.__tsaView.setZoom(4);
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    });
+    await page.screenshot({ path: process.env.SHOT_ZOOM });
   }
 
   console.log("diagnostics:", JSON.stringify(diag, null, 2));
   console.log("lab:", JSON.stringify(lab));
   console.log("battle:", JSON.stringify(battle));
+  console.log("view:", JSON.stringify(view));
 
   const problems = [];
   if (!diag) {
@@ -167,6 +186,12 @@ try {
     if (!battle.deterministic) {
       problems.push("battle: two identical runs diverged");
     }
+  }
+  if (view.error) {
+    problems.push(`VIEW: ${view.error}`);
+  } else {
+    if (!view.borders) problems.push("view: borders toggle did not stick");
+    if (!view.symmetry) problems.push("view: symmetry toggle did not stick");
   }
   for (const e of pageErrors) problems.push(`PAGEERROR: ${e}`);
   for (const e of httpErrors) problems.push(`HTTP: ${e}`);

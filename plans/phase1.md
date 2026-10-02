@@ -147,9 +147,12 @@ bits  0..7   owner id        (0 = unowned, 1 = Lab, 2/3 = players)
 bits  8..10  orientation     (D4 index, for tile shading)
 bit   11     shade           (alternates neighbouring tile instances)
 bits 12..15  role            (1 = core)
-bits 16..23  integrity / hp  (reserved)
-bits 24..31  age / growth    (reserved)
+bits 16..31  tile tag        (per-tile id, for boundary drawing)
 ```
+
+(The tag lets the renderer outline tiles even when they share owner and
+orientation, so 1x1 tilings and multi-symmetry tilings are both legible. The
+HUD has **Borders** and **Symmetry** toggles for this.)
 
 Keep the buffer `u32`-per-cell so it can grow into this without a rewrite.
 
@@ -261,5 +264,8 @@ validator is trusted.
   the cell, simultaneous claims raze it). Growth is deterministic and covered by
   unit tests; the headless smoke test runs two tessellations for 60 ticks twice
   and asserts identical results and a contested front. The app gained a
-  **Battle** mode (CPU sim uploaded each tick). Follow-ups from the design doc:
-  energy budgets, max extent, and the anti-snowball severing mechanic.
+  **Battle** mode (CPU sim uploaded each tick). The cell format gained a
+  per-tile tag so the renderer can outline tile boundaries, and the HUD has
+  **Borders** and **Symmetry** toggles (the latter tints each owner's cells by
+  D4 orientation). Follow-ups from the design doc: energy budgets, max extent,
+  and the anti-snowball severing mechanic.

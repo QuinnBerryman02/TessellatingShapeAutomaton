@@ -177,10 +177,12 @@ export function rasterize(
   const nMin = Math.floor(t2Min) - 1;
   const nMax = Math.ceil(t2Max) + 1;
 
+  let nextTag = 0;
   for (let i = 0; i < def.placements.length; i++) {
     const placement = def.placements[i];
     for (let m = mMin; m <= mMax; m++) {
       for (let n = nMin; n <= nMax; n++) {
+        const tag = nextTag++ & 0xffff;
         const base = addVec(
           placement.offset,
           addVec(scaleVec(def.basis1, m), scaleVec(def.basis2, n)),
@@ -200,6 +202,7 @@ export function rasterize(
             owner,
             orientation: placement.orientation,
             shade,
+            tag,
           });
         }
       }

@@ -13,6 +13,8 @@ const labRoot = document.getElementById("lab") as HTMLElement;
 const modeLab = document.getElementById("mode-lab") as HTMLButtonElement;
 const modeBattle = document.getElementById("mode-battle") as HTMLButtonElement;
 const modeView = document.getElementById("mode-view") as HTMLButtonElement;
+const viewBorders = document.getElementById("view-borders") as HTMLButtonElement;
+const viewSymmetry = document.getElementById("view-symmetry") as HTMLButtonElement;
 const viewInfo = document.getElementById("view-info") as HTMLSpanElement;
 
 const GRID_WIDTH = 256;
@@ -33,6 +35,15 @@ async function main(): Promise<void> {
     const scene = new GridScene(gpu, GRID_WIDTH, GRID_HEIGHT);
     const halfW = Math.floor(GRID_WIDTH / 2);
     const halfH = Math.floor(GRID_HEIGHT / 2);
+
+    let showBorders = false;
+    let showSymmetry = false;
+    const applyStyle = (): void => {
+      scene.setBorders(showBorders);
+      scene.setSymmetry(showSymmetry);
+      viewBorders.classList.toggle("active", showBorders);
+      viewSymmetry.classList.toggle("active", showSymmetry);
+    };
 
     let selected: TessellationDef = L_TROMINO_BRICK;
     const showTessellation = (def: TessellationDef): void => {
@@ -137,6 +148,29 @@ async function main(): Promise<void> {
       contested: () => battle.contestedCells,
       tickCount: () => battle.tickCount,
     };
+    (window as unknown as { __tsaView: unknown }).__tsaView = {
+      setBorders: (on: boolean) => {
+        showBorders = on;
+        applyStyle();
+      },
+      setSymmetry: (on: boolean) => {
+        showSymmetry = on;
+        applyStyle();
+      },
+      borders: () => showBorders,
+      symmetry: () => showSymmetry,
+      setZoom: (zoom: number) => scene.setZoom(zoom),
+    };
+
+    viewBorders.addEventListener("click", () => {
+      showBorders = !showBorders;
+      applyStyle();
+    });
+    viewSymmetry.addEventListener("click", () => {
+      showSymmetry = !showSymmetry;
+      applyStyle();
+    });
+    applyStyle();
 
     modeLab.addEventListener("click", () => setMode("lab"));
     modeBattle.addEventListener("click", () => setMode("battle"));

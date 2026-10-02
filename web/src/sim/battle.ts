@@ -56,6 +56,7 @@ class Expander {
   private readonly frontier = new Map<string, FrontierEntry>();
   private readonly seedAnchor: Vec2;
   private readonly cellBuffer: Vec2[] = [];
+  private nextTag = 0;
 
   constructor(config: ParticipantConfig, world: WorldGrid) {
     this.config = config;
@@ -113,7 +114,7 @@ class Expander {
 
   /** The seed tile is the core, marked so the renderer can highlight it. */
   private writeSeed(seed: TileInstance, world: WorldGrid): void {
-    const value = this.cellValue(seed, ROLE_CORE);
+    const value = this.cellValue(seed, ROLE_CORE, this.nextTag++);
     for (const cell of this.pattern.cells(seed, this.cellBuffer)) {
       if (world.inBounds(cell.x, cell.y)) {
         world.set(cell.x, cell.y, value);
@@ -122,7 +123,7 @@ class Expander {
   }
 
   private emit(instance: TileInstance, world: WorldGrid, out: CellClaim[]): void {
-    const value = this.cellValue(instance, ROLE_NORMAL);
+    const value = this.cellValue(instance, ROLE_NORMAL, this.nextTag++);
     for (const cell of this.pattern.cells(instance, this.cellBuffer)) {
       if (!world.inBounds(cell.x, cell.y)) continue;
       out.push({
@@ -133,11 +134,17 @@ class Expander {
     }
   }
 
-  private cellValue(instance: TileInstance, role: number): number {
+  private cellValue(instance: TileInstance, role: number, tag: number): number {
     const orientation =
       this.pattern.def.placements[instance.placement].orientation;
     const shade = (((instance.m + instance.n) % 2) + 2) % 2;
-    return packCell({ owner: this.config.owner, orientation, shade, role });
+    return packCell({
+      owner: this.config.owner,
+      orientation,
+      shade,
+      role,
+      tag: tag & 0xffff,
+    });
   }
 }
 

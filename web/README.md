@@ -87,7 +87,7 @@ bits  0..7   owner         (0 empty, 1 Lab, 2/3 players)
 bits  8..10  orientation   (D4 index, for shading a tile)
 bit   11     shade         (alternates neighbouring tile instances)
 bits 12..15  role          (1 = core)
-bits 16..31  reserved      (integrity / age)
+bits 16..31  tile tag      (per-tile id, for drawing boundaries)
 ```
 
 Keep it `u32` per cell so the sim can grow into more fields without a rewrite.
@@ -140,6 +140,18 @@ lattice parity, so even single-orientation tilings are legible.
 Growth is CPU-side for now (still ~10k cells in 60 ticks, fast enough); a GPU
 compute path is the M7 batch work. The `Battle`/`Expander` classes are pure TS,
 so the tick loop is unit-tested under `node --test`.
+
+### View toggles
+
+The HUD has two render toggles that work in every mode:
+
+- **Borders** draws a thin dark outline between cells whose *tile tag* differs,
+  so the actual tile shapes (not just the owner regions) are visible — including
+  a 1×1 tiling's grid. The tag is written per tile by both the rasteriser and
+  the sim.
+- **Symmetry** tints each owner's cells by tile orientation (eight D4 tones per
+  owner), so a pattern's rotations/reflections read at a glance instead of
+  collapsing into two flat shades.
 
 Next: `game/` skirmish state machine, a camera, a HUD, and a basic AI — the M4
 work in `plans/phase1.md`.

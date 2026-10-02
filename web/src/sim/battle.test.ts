@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { OWNER_PLAYER_A, OWNER_PLAYER_B } from "../core/cell.ts";
+import { OWNER_PLAYER_A, OWNER_PLAYER_B, ownerOf, tagOf } from "../core/cell.ts";
 import { L_TROMINO_BRICK, UNIT_SQUARE } from "../model/builtins.ts";
 import { Battle, type BattleConfig } from "./battle.ts";
 
@@ -26,6 +26,25 @@ test("a lone tessellation grows a filled diamond", () => {
   // Edge adjacency makes each layer a diamond: 2t^2 + 2t + 1 cells after t.
   assert.equal(battle.world.countOwner(OWNER_PLAYER_A), 25);
   assert.equal(battle.tickCount, 3);
+});
+
+test("grown cells carry a per-tile tag", () => {
+  const battle = new Battle(
+    config([
+      {
+        name: "A",
+        owner: OWNER_PLAYER_A,
+        def: L_TROMINO_BRICK,
+        seed: { x: 32, y: 32 },
+      },
+    ]),
+  );
+  battle.run(6);
+  const tags = new Set<number>();
+  for (const cell of battle.world.cells) {
+    if (ownerOf(cell) === OWNER_PLAYER_A) tags.add(tagOf(cell));
+  }
+  assert.ok(tags.size > 1, `expected several tile tags, got ${tags.size}`);
 });
 
 test("growth is deterministic across identical battles", () => {

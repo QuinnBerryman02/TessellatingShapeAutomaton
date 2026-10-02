@@ -11,8 +11,8 @@ struct Params {
   scaleX: f32,
   scaleY: f32,
   zoom: f32,
-  pad1: f32,
-  pad2: f32,
+  borders: f32,
+  symmetry: f32,
 };
 
 @group(0) @binding(0) var<uniform> params: Params;

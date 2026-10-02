@@ -38,6 +38,12 @@ export class GridScene {
   /** Magnification of the world grid. 4 shows about a quarter of the width. */
   zoom = 4;
 
+  /** Draw a dark outline between cells belonging to different tiles. */
+  showBorders = false;
+
+  /** Tint player cells by tile orientation instead of a flat owner colour. */
+  symmetryTones = false;
+
   constructor(gpu: GpuContext, width: number, height: number) {
     this.device = gpu.device;
     this.context = gpu.context;
@@ -117,6 +123,14 @@ export class GridScene {
     this.zoom = Math.max(0.25, zoom);
   }
 
+  setBorders(on: boolean): void {
+    this.showBorders = on;
+  }
+
+  setSymmetry(on: boolean): void {
+    this.symmetryTones = on;
+  }
+
   /** Uploads one u32 per cell (see `model/tessellation.ts` raster format). */
   setCells(cells: Uint32Array): void {
     if (cells.length !== this.width * this.height) {
@@ -182,6 +196,8 @@ export class GridScene {
     this.paramsF32[3] = scaleX;
     this.paramsF32[4] = scaleY;
     this.paramsF32[5] = this.zoom;
+    this.paramsF32[6] = this.showBorders ? 1 : 0;
+    this.paramsF32[7] = this.symmetryTones ? 1 : 0;
 
     this.device.queue.writeBuffer(this.paramsBuffer, 0, this.paramsData);
   }
