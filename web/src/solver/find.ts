@@ -1,12 +1,14 @@
-import { D4_NAMES, type D4 } from "../core/d4.ts";
+import { D4_NAMES, inverseD4, type D4 } from "../core/d4.ts";
 import { keyVec, type Vec2 } from "../core/vec2.ts";
 import { transformedCells, type ShapeDef } from "../model/shape.ts";
 import {
   reduceModLattice,
+  transformTessellation,
   type Placement,
   type TessellationDef,
 } from "../model/tessellation.ts";
 import { canonicalSignature } from "./canonical.ts";
+import { analyzeSymmetry } from "./symmetry.ts";
 import { validateTessellation } from "./validate.ts";
 
 export interface FindOptions {
@@ -20,6 +22,12 @@ export interface FindOptions {
   readonly maxResults?: number;
   /** Cap the exact-cover solutions explored per lattice. */
   readonly maxSolutionsPerLattice?: number;
+  /**
+   * Keep only tessellations whose tiles form a single symmetry orbit. Default
+   * true: multi-orbit tilings contain tiles that are the same shape but not
+   * symmetry-equivalent, which is noisier to compare.
+   */
+  readonly singleOrbitOnly?: boolean;
 }
 
 interface Candidate {
@@ -235,6 +243,42 @@ function exactCover(
 }
 
 /**
+ * Re-expresses a tiling so the drawn (identity) orientation actually appears.
+ * Rotating a tiling is only a change of description, but fixing every result to
+ * contain the shape as drawn makes them directly comparable.
+ */
+function orientToIdentity(def: TessellationDef): TessellationDef {
+  let oriented = def;
+  if (!oriented.placements.some((p) => p.orientation === 0)) {
+    const reference = oriented.placements.reduce((best, p) =>
+      p.orientation < best.orientation ? p : best,
+    );
+    oriented = transformTessellation(def, inverseD4(reference.orientation));
+  }
+  // Put an identity-oriented (as-drawn) tile at the origin, so every result is
+  // also aligned in position and not just in orientation.
+  const anchor = oriented.placements
+    .filter((p) => p.orientation === 0)
+    .reduce((best, p) =>
+      Math.abs(p.offset.x) + Math.abs(p.offset.y) <
+        Math.abs(best.offset.x) + Math.abs(best.offset.y) ||
+      (Math.abs(p.offset.x) + Math.abs(p.offset.y) ===
+        Math.abs(best.offset.x) + Math.abs(best.offset.y) &&
+        (p.offset.x < best.offset.x ||
+          (p.offset.x === best.offset.x && p.offset.y < best.offset.y)))
+        ? p
+        : best,
+    );
+  return {
+    ...oriented,
+    placements: oriented.placements.map((p) => ({
+      ...p,
+      offset: { x: p.offset.x - anchor.offset.x, y: p.offset.y - anchor.offset.y },
+    })),
+  };
+}
+
+/**
  * Searches for lattice tilings of a tile shape, using its D4 orientations.
  *
  * For each candidate lattice the plane modulo the lattice is a finite set of
@@ -252,6 +296,7 @@ export function findTessellations(
   const maxResults = options.maxResults ?? 200;
   const maxSolutionsPerLattice = options.maxSolutionsPerLattice ?? 40;
 
+  const singleOrbitOnly = options.singleOrbitOnly ?? true;
   const cells = normalizeCells(shape.cells);
   if (cells.length === 0) return [];
   const normalized: ShapeDef = { name: shape.name, cells };
@@ -319,8 +364,10 @@ export function findTessellations(
       if (!validateTessellation(def).valid) continue;
       const signature = canonicalSignature(def);
       if (seenSignatures.has(signature)) continue;
+      const analysis = analyzeSymmetry(def);
+      if (singleOrbitOnly && analysis.orbitCount > 1) continue;
       seenSignatures.add(signature);
-      results.push(def);
+      results.push(orientToIdentity(def));
       if (results.length >= maxResults) return results;
     }
   }

@@ -134,6 +134,16 @@ The finder orders lattices by covolume, works modulo the lattice, and solves an
 exact cover of the residue cells with tile placements (backtracking). Every
 solution is re-validated and canonicalised before it is shown.
 
+Two presentation rules (`FindOptions`):
+
+- **Single orbit only** (default): tilings whose tiles fall into more than one
+  symmetry orbit are dropped, since they contain the same shape in
+  non-equivalent positions. Pass `singleOrbitOnly: false` to keep them.
+- **Drawn orientation at the origin**: each result is re-expressed so a tile in
+  the as-drawn orientation sits at the origin. Rotating/translating a tiling is
+  only a change of description, but this makes every result directly
+  comparable.
+
 The world view has a `zoom` uniform (`GridScene.setZoom`) and shades tiles by
 lattice parity, so even single-orientation tilings are legible.
 

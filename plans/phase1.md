@@ -271,6 +271,8 @@ validator is trusted.
   **Borders** and **Symmetry** toggles. Follow-up (same milestone):
   `solver/symmetry.ts` now computes each tiling's translation lattice, point
   symmetries and tile **orbits**, giving a correct canonical signature (dedupe)
-  and a true per-tile symmetry class, which the Lab colours and reports.
-  Follow-ups from the design doc: energy budgets, max extent, and the
-  anti-snowball severing mechanic.
+  and a true per-tile symmetry class, which the Lab colours and reports. The
+  finder now keeps only **single-orbit** tilings (all tiles
+  symmetry-equivalent) and orients each result so the drawn shape appears, at
+  the origin, in the orientation it was drawn. Follow-ups from the design doc:
+  energy budgets, max extent, and the anti-snowball severing mechanic.
