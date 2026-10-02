@@ -37,7 +37,9 @@ fn vs(@builtin(vertex_index) vi: u32) -> VSOut {
   let p = pts[vi];
   var out: VSOut;
   out.pos = vec4<f32>(p, 0.0, 1.0);
-  out.uv = p * 0.5 + vec2<f32>(0.5, 0.5);
+  // Flip y: cell row 0 must be at the top of the canvas, matching the Lab's 2D
+  // draw grid and result previews (both of which use screen coordinates).
+  out.uv = vec2<f32>(p.x * 0.5 + 0.5, 0.5 - p.y * 0.5);
   return out;
 }
 
