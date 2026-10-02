@@ -54,6 +54,11 @@ export interface RasterOptions {
   readonly shadeTiles?: boolean;
   /** Owner id stamped into every non-empty cell (default `OWNER_LAB`). */
   readonly owner?: number;
+  /**
+   * Optional palette slot (0..15) for a tile instance, given its orientation
+   * and base point. Used to colour tiles by their symmetry class.
+   */
+  readonly classify?: (orientation: D4, base: Vec2) => number;
 }
 
 /** Area of the fundamental cell of the lattice. */
@@ -80,9 +85,11 @@ export function reduceModLattice(u: Vec2, basis1: Vec2, basis2: Vec2): Vec2 {
   const { t1, t2 } = latticeCoords(u, basis1, basis2);
   const m0 = Math.floor(t1);
   const n0 = Math.floor(t2);
+  // A wide window so even a skewed basis still finds the true minimum.
+  const radius = 3;
   let best: Vec2 | undefined;
-  for (let m = m0 - 1; m <= m0 + 1; m++) {
-    for (let n = n0 - 1; n <= n0 + 1; n++) {
+  for (let m = m0 - radius; m <= m0 + radius; m++) {
+    for (let n = n0 - radius; n <= n0 + radius; n++) {
       const candidate = addVec(
         u,
         addVec(scaleVec(basis1, -m), scaleVec(basis2, -n)),
@@ -198,10 +205,13 @@ export function rasterize(
             continue;
           }
           const shade = options.shadeTiles ? (m + n) & 1 : 0;
+          const slot = options.classify
+            ? options.classify(placement.orientation, base)
+            : placement.orientation + 8 * shade;
           cells[(p.y - region.minY) * width + (p.x - region.minX)] = packCell({
             owner,
-            orientation: placement.orientation,
-            shade,
+            orientation: slot & 0x7,
+            shade: (slot >> 3) & 1,
             tag,
           });
         }

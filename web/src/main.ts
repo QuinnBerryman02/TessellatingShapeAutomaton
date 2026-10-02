@@ -5,6 +5,7 @@ import { GridScene } from "./gpu/gridScene.ts";
 import { LabPanel } from "./lab/labPanel.ts";
 import { L_TROMINO_BRICK, UNIT_SQUARE } from "./model/builtins.ts";
 import { rasterize, type TessellationDef } from "./model/tessellation.ts";
+import { analyzeSymmetry } from "./solver/symmetry.ts";
 import { Battle } from "./sim/battle.ts";
 
 const canvas = document.getElementById("app") as HTMLCanvasElement;
@@ -36,30 +37,51 @@ async function main(): Promise<void> {
     const halfW = Math.floor(GRID_WIDTH / 2);
     const halfH = Math.floor(GRID_HEIGHT / 2);
 
+    let mode: Mode = "lab";
     let showBorders = false;
     let showSymmetry = false;
+
+    const region = {
+      minX: -halfW,
+      minY: -halfH,
+      maxX: -halfW + GRID_WIDTH - 1,
+      maxY: -halfH + GRID_HEIGHT - 1,
+    };
+
+    let selected: TessellationDef = L_TROMINO_BRICK;
+    let selectedSymmetry = analyzeSymmetry(selected);
+
+    const renderSelected = (): void => {
+      const raster = rasterize(
+        selected,
+        region,
+        showSymmetry
+          ? {
+              classify: (orientation, base) =>
+                selectedSymmetry.slotFor(orientation, base),
+            }
+          : { shadeTiles: true },
+      );
+      scene.setCells(raster.cells);
+      viewInfo.textContent =
+        `${selected.placements.length} placement(s) · ${selected.shape.cells.length}-cell tile` +
+        (showSymmetry
+          ? ` · ${selectedSymmetry.orbitCount} orbit(s) · ${selectedSymmetry.pointSymmetries.length} symmetry op(s)`
+          : "");
+    };
+
     const applyStyle = (): void => {
       scene.setBorders(showBorders);
       scene.setSymmetry(showSymmetry);
       viewBorders.classList.toggle("active", showBorders);
       viewSymmetry.classList.toggle("active", showSymmetry);
+      if (mode !== "battle") renderSelected();
     };
 
-    let selected: TessellationDef = L_TROMINO_BRICK;
     const showTessellation = (def: TessellationDef): void => {
       selected = def;
-      const raster = rasterize(
-        def,
-        {
-          minX: -halfW,
-          minY: -halfH,
-          maxX: -halfW + GRID_WIDTH - 1,
-          maxY: -halfH + GRID_HEIGHT - 1,
-        },
-        { shadeTiles: true },
-      );
-      scene.setCells(raster.cells);
-      viewInfo.textContent = `${def.placements.length} placement(s) · ${def.shape.cells.length}-cell tile`;
+      selectedSymmetry = analyzeSymmetry(def);
+      renderSelected();
     };
 
     const battle = new Battle({
@@ -90,7 +112,6 @@ async function main(): Promise<void> {
       return `${parts.join(" · ")} · tick ${battle.tickCount}`;
     };
 
-    let mode: Mode = "lab";
     let battlePaused = false;
     const setMode = (next: Mode): void => {
       mode = next;

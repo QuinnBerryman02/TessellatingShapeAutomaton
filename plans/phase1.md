@@ -227,8 +227,10 @@ validator is trusted.
   a total order to avoid unfair simultaneous ties?
 - **Coverage semantics.** Must a valid tessellation cover the *whole* plane, or
   just a bounded fundamental domain? This changes the solver's acceptance test.
-- **Canonicalisation.** Exact hash for "same tessellation up to symmetry" —
-  needed for collection and dedupe.
+- ~~**Canonicalisation.** Exact hash for "same tessellation up to symmetry" —
+  needed for collection and dedupe.~~ Done: `solver/symmetry.ts` finds the
+  primitive translation lattice, so supercell descriptions of one tiling
+  collapse, and tile classes are read off the tiling's symmetry group.
 - **Growth model.** Does a pattern grow only from its frontier (geometric), or
   does it spend energy to place shapes (economic)? The second is more game-like.
 - **Scale.** Field size and tick rate that keep battles readable while still
@@ -266,6 +268,9 @@ validator is trusted.
   and asserts identical results and a contested front. The app gained a
   **Battle** mode (CPU sim uploaded each tick). The cell format gained a
   per-tile tag so the renderer can outline tile boundaries, and the HUD has
-  **Borders** and **Symmetry** toggles (the latter tints each owner's cells by
-  D4 orientation). Follow-ups from the design doc: energy budgets, max extent,
-  and the anti-snowball severing mechanic.
+  **Borders** and **Symmetry** toggles. Follow-up (same milestone):
+  `solver/symmetry.ts` now computes each tiling's translation lattice, point
+  symmetries and tile **orbits**, giving a correct canonical signature (dedupe)
+  and a true per-tile symmetry class, which the Lab colours and reports.
+  Follow-ups from the design doc: energy budgets, max extent, and the
+  anti-snowball severing mechanic.

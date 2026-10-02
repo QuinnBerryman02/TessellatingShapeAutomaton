@@ -52,7 +52,8 @@ src/
     builtins.ts       example tessellations
   solver/
     validate.ts       exact-tiling validator
-    canonical.ts      symmetry/translation-invariant signature
+    symmetry.ts       tiling symmetry group, tile orbits, canonical signature
+    canonical.ts      re-exports the canonical signature
     find.ts           search for lattice tilings of a drawn shape
   lab/
     collection.ts     saved discoveries (localStorage + JSON)
@@ -103,9 +104,23 @@ Keep it `u32` per cell so the sim can grow into more fields without a rewrite.
 - **`canonicalSignature`** is invariant under translation and the square's
   symmetries, so a rotated copy is not counted as a new tessellation.
 
-Known limitation: canonicalisation reduces placements modulo the lattice, so it
-is exact for the reduced bases used so far but is not yet a general lattice
-canonical form.
+### Symmetry and equivalence (`solver/symmetry.ts`)
+
+A tiling's **symmetry group** is every isometry that maps it to itself, and its
+**translation subgroup** is a sublattice of Z² (possibly larger than the basis
+the tiling was described with). The analysis finds that subgroup with a cheap
+check on the plane modulo the lattice, reduces it to a Hermite basis, and then
+finds the point symmetries (a D4 element plus an integer translation).
+
+- **Dedupe.** `canonicalSignature` works on the *primitive* translation
+  lattice: it partitions the primitive cell into tiles and minimises that
+  partition over the choice of origin and the eight square symmetries. Two
+  descriptions of one tiling — including a supercell description — therefore
+  collapse to a single result.
+- **Tile classes.** Tiles fall into **orbits** under the symmetry group. Two
+  tiles in different orbits are the same shape but not symmetry-equivalent
+  (the game's "two shape tessellations"); within an orbit the D4 part of a
+  symmetry carrying the reference tile to a tile is its **class**.
 
 ## Lab (M2)
 
@@ -149,9 +164,12 @@ The HUD has two render toggles that work in every mode:
   so the actual tile shapes (not just the owner regions) are visible — including
   a 1×1 tiling's grid. The tag is written per tile by both the rasteriser and
   the sim.
-- **Symmetry** tints each owner's cells by tile orientation (eight D4 tones per
-  owner), so a pattern's rotations/reflections read at a glance instead of
-  collapsing into two flat shades.
+- **Symmetry** colours each tile by its class within the tiling: a tone per D4
+  symmetry, and a shifted tone base per orbit. In the Lab this shows the
+  tiling's *actual* symmetries (a translation-only tiling stays one tone; one
+  with a 180° rotation splits into two), and the HUD reports the orbit and
+  symmetry-op counts. For battle players it tints each owner's tiles by the
+  orientation stored in the cell.
 
 Next: `game/` skirmish state machine, a camera, a HUD, and a basic AI — the M4
 work in `plans/phase1.md`.

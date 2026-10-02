@@ -80,7 +80,7 @@ try {
   const diag = await page.evaluate(() => window.__tsaDiag ?? null);
 
   // Exercise the Lab: draw an L-tromino, find its tilings, save one.
-  const lab = await page.evaluate(() => {
+  const lab = await page.evaluate((requestedIndex) => {
     const api = window.__tsaLab;
     if (!api) return { error: "window.__tsaLab is missing" };
     api.setShape([
@@ -89,16 +89,18 @@ try {
       [0, 1],
     ]);
     const count = api.find();
+    const index = Math.max(0, Math.min(count - 1, requestedIndex));
     if (count > 0) {
-      api.select(0);
+      api.select(index);
       api.save();
     }
     return {
       count,
+      index,
       collection: api.collectionSize(),
       info: document.getElementById("view-info")?.textContent ?? "",
     };
-  });
+  }, Number(process.env.LAB_INDEX ?? 0));
 
   // Exercise the battle sim: run it twice from the same seed and confirm the
   // result is identical (determinism) while both sides gain ground and clash.
@@ -137,6 +139,14 @@ try {
 
   if (process.env.SHOT) {
     await page.screenshot({ path: process.env.SHOT });
+  }
+  if (process.env.SHOT_LAB) {
+    await page.evaluate(async () => {
+      window.__tsaBattle.setMode("view");
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    });
+    await page.screenshot({ path: process.env.SHOT_LAB });
   }
   if (process.env.SHOT_ZOOM) {
     await page.evaluate(async () => {
