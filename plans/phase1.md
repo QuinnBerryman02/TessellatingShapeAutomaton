@@ -287,5 +287,7 @@ validator is trusted.
   tessellations, D4, lattices, holohedry and the wallpaper groups, and the
   `encyclopedia.html` page: every free polyomino by size, with wallpaper-group
   counts per tile (searched on demand and cached), linking into the Lab via
-  `/?shape=`. Follow-ups from the design doc: energy budgets, max extent, and
-  the anti-snowball severing mechanic.
+  `/?shape=`. The **Play** mode (see `plans/progression.md`) is a puzzle
+  campaign that reuses the solver: place tiles to pin down each tiling, with
+  forced cells revealed by constraint propagation. Follow-ups from the design
+  doc: energy budgets, max extent, and the anti-snowball severing mechanic.

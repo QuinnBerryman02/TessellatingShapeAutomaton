@@ -300,6 +300,46 @@ try {
     problems.push(`?shape= preload did not reach the Lab: "${shapeInfo}"`);
   }
 
+  // Progression mode: place a neighbour of the unit square and discover its
+  // single target tiling.
+  const play = await page.evaluate(async () => {
+    const api = window.__tsaProg;
+    if (!api) return { error: "window.__tsaProg is missing" };
+    api.enter();
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    const before = api.state();
+    api.place(0, 1, 0);
+    const after = api.state();
+    for (let i = 0; i < 120; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      if (api.state().found > 0) break;
+    }
+    return { before, after, final: api.state() };
+  });
+  console.log("play:", JSON.stringify(play));
+  if (play.error) {
+    problems.push(`PLAY: ${play.error}`);
+  } else {
+    if (play.before?.total !== 1) {
+      problems.push(`play: unit square had ${play.before?.total} targets`);
+    }
+    if (play.after?.pool !== 1) {
+      problems.push(`play: placement did not pin the tiling (${play.after?.pool})`);
+    }
+    if (!(play.final?.found > 0)) {
+      problems.push(`play: nothing discovered (${JSON.stringify(play)})`);
+    }
+  }
+  if (process.env.SHOT_PLAY) {
+    await page.evaluate(() => {
+      const api = window.__tsaProg;
+      api.load(2); // L-tromino
+      api.place(0, -2, 1); // a single mirror neighbour collapses it
+    });
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    await page.screenshot({ path: process.env.SHOT_PLAY });
+  }
+
   for (const e of pageErrors) problems.push(`PAGEERROR: ${e}`);
   for (const e of httpErrors) problems.push(`HTTP: ${e}`);
   for (const e of consoleErrors) problems.push(`CONSOLE.ERROR: ${e}`);

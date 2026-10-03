@@ -131,6 +131,36 @@ export class GridScene {
     this.symmetryTones = on;
   }
 
+  /**
+   * Maps a viewport coordinate to a grid cell, inverting the letterbox + zoom
+   * camera used by the render shader. Returns null outside the canvas.
+   */
+  screenToCell(clientX: number, clientY: number): { x: number; y: number } | null {
+    const rect = this.canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
+    const u = (clientX - rect.left) / rect.width;
+    const v = (clientY - rect.top) / rect.height;
+    if (u < 0 || u >= 1 || v < 0 || v >= 1) return null;
+
+    const canvasAspect = this.canvas.width / this.canvas.height;
+    const gridAspect = this.width / this.height;
+    let scaleX = 1;
+    let scaleY = 1;
+    if (canvasAspect > gridAspect) {
+      scaleX = gridAspect / canvasAspect;
+    } else {
+      scaleY = canvasAspect / gridAspect;
+    }
+    const sx = scaleX * this.zoom;
+    const sy = scaleY * this.zoom;
+    const ux = (u - 0.5) / sx + 0.5;
+    const uy = (v - 0.5) / sy + 0.5;
+    const gx = Math.floor(ux * this.width);
+    const gy = Math.floor(uy * this.height);
+    if (gx < 0 || gy < 0 || gx >= this.width || gy >= this.height) return null;
+    return { x: gx, y: gy };
+  }
+
   /** Uploads one u32 per cell (see `model/tessellation.ts` raster format). */
   setCells(cells: Uint32Array): void {
     if (cells.length !== this.width * this.height) {

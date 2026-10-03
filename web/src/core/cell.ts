@@ -30,6 +30,14 @@ export const OWNER_LAB = 1;
 export const OWNER_PLAYER_A = 2;
 export const OWNER_PLAYER_B = 3;
 
+/** Progression-mode owners (see `src/prog/progression.ts`). */
+export const OWNER_PROG_SEED = 4;
+export const OWNER_PROG_PLACED = 5;
+export const OWNER_PROG_FORCED = 6;
+export const OWNER_PROG_GHOST = 7;
+export const OWNER_PROG_CURSOR = 8;
+export const OWNER_PROG_BAD = 9;
+
 /** Cell roles. Only NORMAL and CORE are used so far. */
 export const ROLE_NORMAL = 0;
 export const ROLE_CORE = 1;

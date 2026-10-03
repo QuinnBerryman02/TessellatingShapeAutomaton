@@ -3,6 +3,7 @@ import { diag, installDiagnostics, publishDiagnostics } from "./diag.ts";
 import { initGpu, resizeCanvas } from "./gpu/device.ts";
 import { GridScene } from "./gpu/gridScene.ts";
 import { LabPanel } from "./lab/labPanel.ts";
+import { Progression } from "./prog/progression.ts";
 import { L_TROMINO_BRICK, UNIT_SQUARE } from "./model/builtins.ts";
 import { rasterize, type TessellationDef } from "./model/tessellation.ts";
 import {
@@ -15,7 +16,9 @@ import { Battle } from "./sim/battle.ts";
 const canvas = document.getElementById("app") as HTMLCanvasElement;
 const status = document.getElementById("status") as HTMLDivElement;
 const labRoot = document.getElementById("lab") as HTMLElement;
+const progRoot = document.getElementById("prog") as HTMLElement;
 const modeLab = document.getElementById("mode-lab") as HTMLButtonElement;
+const modePlay = document.getElementById("mode-play") as HTMLButtonElement;
 const modeBattle = document.getElementById("mode-battle") as HTMLButtonElement;
 const modeView = document.getElementById("mode-view") as HTMLButtonElement;
 const viewBorders = document.getElementById("view-borders") as HTMLButtonElement;
@@ -26,7 +29,7 @@ const GRID_WIDTH = 256;
 const GRID_HEIGHT = 256;
 const BATTLE_TICK_MS = 90;
 
-type Mode = "lab" | "battle" | "view";
+type Mode = "lab" | "play" | "battle" | "view";
 
 /** Parse a `?shape=x,y;x,y` query into cell coordinates. */
 function parseShapeParam(value: string | null): [number, number][] {
@@ -93,7 +96,7 @@ async function main(): Promise<void> {
       scene.setSymmetry(showSymmetry);
       viewBorders.classList.toggle("active", showBorders);
       viewSymmetry.classList.toggle("active", showSymmetry);
-      if (mode !== "battle") renderSelected();
+      if (mode !== "battle" && mode !== "play") renderSelected();
     };
 
     const showTessellation = (def: TessellationDef): void => {
@@ -130,20 +133,38 @@ async function main(): Promise<void> {
       return `${parts.join(" · ")} · tick ${battle.tickCount}`;
     };
 
+    const prog = new Progression({
+      scene,
+      canvas,
+      root: progRoot,
+      onStatus: (text) => {
+        viewInfo.textContent = text;
+      },
+    });
+
     let battlePaused = false;
     const setMode = (next: Mode): void => {
       mode = next;
       labRoot.hidden = next !== "lab";
+      progRoot.hidden = next !== "play";
       modeLab.classList.toggle("active", next === "lab");
+      modePlay.classList.toggle("active", next === "play");
       modeBattle.classList.toggle("active", next === "battle");
       modeView.classList.toggle("active", next === "view");
-      if (next === "battle") {
-        scene.setZoom(1);
-        uploadBattle();
-        viewInfo.textContent = battleInfo();
+      if (next === "play") {
+        showBorders = true;
+        applyStyle();
+        prog.enter();
       } else {
-        scene.setZoom(4);
-        renderSelected();
+        prog.leave();
+        if (next === "battle") {
+          scene.setZoom(1);
+          uploadBattle();
+          viewInfo.textContent = battleInfo();
+        } else {
+          scene.setZoom(4);
+          renderSelected();
+        }
       }
       resizeCanvas(canvas);
     };
@@ -163,6 +184,13 @@ async function main(): Promise<void> {
       select: (index: number) => lab.select(index),
       save: () => lab.saveSelected(),
       collectionSize: () => lab.collectionSize(),
+    };
+    (window as unknown as { __tsaProg: unknown }).__tsaProg = {
+      enter: () => setMode("play"),
+      state: () => prog.state(),
+      load: (index: number) => prog.debugLoad(index),
+      place: (orientation: number, x: number, y: number) =>
+        prog.debugPlaceAt(orientation, x, y),
     };
     (window as unknown as { __tsaBattle: unknown }).__tsaBattle = {
       setMode,
@@ -212,6 +240,7 @@ async function main(): Promise<void> {
     applyStyle();
 
     modeLab.addEventListener("click", () => setMode("lab"));
+    modePlay.addEventListener("click", () => setMode("play"));
     modeBattle.addEventListener("click", () => setMode("battle"));
     modeView.addEventListener("click", () => setMode("view"));
     setMode("lab");
@@ -231,6 +260,7 @@ async function main(): Promise<void> {
     let accumulator = 0;
     const frame = (now: number): void => {
       resizeCanvas(canvas);
+      if (mode === "play") prog.tick(now);
       if (mode === "battle" && !battlePaused) {
         accumulator += Math.min(250, now - last);
         let steps = 0;

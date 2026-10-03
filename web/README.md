@@ -42,6 +42,26 @@ This is a real Vite page (a second `build.rollupOptions.input`), not a static
 asset, because it uses the TypeScript solver directly. `src/encyclopedia/`
 holds the free-polyomino enumeration and the page logic.
 
+## Progression mode
+
+The **Play** button opens a puzzle campaign: work up the polyominoes from size
+1, discovering *every* tessellation of each tile. You place copies of the tile
+(rotate with `R`/`E`, back with `Q`, flip with `F`, click to place, right-click
+or `Z` to undo, `H` toggles the hint layer). The board keeps the set of target
+tilings still consistent with your placements and **fills in every cell all of
+them agree on**, so a good placement locks a whole tiling and the fill spreads
+outward from the tile you placed. A placement no tiling can contain is rejected
+and reverted; pinning the set to one tiling plays a zoom-out reveal and records
+it in the wallpaper-group gallery. Progress lives in `localStorage`
+(`tsa.prog.v1`).
+
+The logic is pure CPU constraint propagation in `src/prog/` (`puzzle.ts` is the
+tested core; `progression.ts` is the controller). It reuses the shared world
+grid / `render.wgsl` path with new cell owners for the seed, placed, forced and
+hint states.
+
+See `plans/progression.md` for the design and the reasoning behind it.
+
 ## Headless GPU verification
 
 `npm test` fails if a shader does not compile or the app cannot bring up a GPU

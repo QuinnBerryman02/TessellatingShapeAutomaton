@@ -82,28 +82,45 @@ fn fs(in: VSOut) -> @location(0) vec4<f32> {
   let shade = (v >> 11u) & 0x1u;
   let role = (v >> 12u) & 0xfu;
 
+  var palette = array<vec4<f32>, 16>(
+    vec4<f32>(0.20, 0.80, 0.90, 1.0),
+    vec4<f32>(0.90, 0.40, 0.80, 1.0),
+    vec4<f32>(0.50, 0.90, 0.40, 1.0),
+    vec4<f32>(0.95, 0.80, 0.30, 1.0),
+    vec4<f32>(0.35, 0.55, 0.90, 1.0),
+    vec4<f32>(0.95, 0.45, 0.40, 1.0),
+    vec4<f32>(0.65, 0.45, 0.95, 1.0),
+    vec4<f32>(0.55, 0.90, 0.75, 1.0),
+    vec4<f32>(0.11, 0.44, 0.50, 1.0),
+    vec4<f32>(0.50, 0.22, 0.44, 1.0),
+    vec4<f32>(0.27, 0.50, 0.22, 1.0),
+    vec4<f32>(0.52, 0.44, 0.16, 1.0),
+    vec4<f32>(0.19, 0.30, 0.50, 1.0),
+    vec4<f32>(0.52, 0.25, 0.22, 1.0),
+    vec4<f32>(0.36, 0.25, 0.52, 1.0),
+    vec4<f32>(0.30, 0.50, 0.41, 1.0),
+  );
   var colour: vec4<f32>;
   if (owner == 1u) {
     // Lab / neutral: colour by tile orientation + shade.
-    var palette = array<vec4<f32>, 16>(
-      vec4<f32>(0.20, 0.80, 0.90, 1.0),
-      vec4<f32>(0.90, 0.40, 0.80, 1.0),
-      vec4<f32>(0.50, 0.90, 0.40, 1.0),
-      vec4<f32>(0.95, 0.80, 0.30, 1.0),
-      vec4<f32>(0.35, 0.55, 0.90, 1.0),
-      vec4<f32>(0.95, 0.45, 0.40, 1.0),
-      vec4<f32>(0.65, 0.45, 0.95, 1.0),
-      vec4<f32>(0.55, 0.90, 0.75, 1.0),
-      vec4<f32>(0.11, 0.44, 0.50, 1.0),
-      vec4<f32>(0.50, 0.22, 0.44, 1.0),
-      vec4<f32>(0.27, 0.50, 0.22, 1.0),
-      vec4<f32>(0.52, 0.44, 0.16, 1.0),
-      vec4<f32>(0.19, 0.30, 0.50, 1.0),
-      vec4<f32>(0.52, 0.25, 0.22, 1.0),
-      vec4<f32>(0.36, 0.25, 0.52, 1.0),
-      vec4<f32>(0.30, 0.50, 0.41, 1.0),
-    );
     colour = palette[orientation + 8u * shade];
+  } else if (owner == 4u) {
+    // Progression seed: the tile the player starts from.
+    colour = vec4<f32>(1.0, 0.82, 0.28, 1.0);
+  } else if (owner == 5u || owner == 6u) {
+    // 5 = placed by the player, 6 = auto-filled because every remaining
+    // candidate tiling agrees on this tile.
+    colour = palette[orientation + 8u * shade];
+    if (owner == 6u) {
+      colour = vec4<f32>(colour.rgb * 0.40, 1.0);
+    }
+  } else if (owner == 7u) {
+    // Hint layer: at least one remaining candidate could cover this cell.
+    colour = vec4<f32>(0.20, 0.32, 0.48, 1.0);
+  } else if (owner == 8u) {
+    colour = vec4<f32>(0.30, 0.95, 0.55, 1.0);
+  } else if (owner == 9u) {
+    colour = vec4<f32>(0.95, 0.32, 0.32, 1.0);
   } else if (params.symmetry > 0.5) {
     // Eight tones per owner: one per D4 symmetry of the tile.
     var paletteA = array<vec4<f32>, 8>(

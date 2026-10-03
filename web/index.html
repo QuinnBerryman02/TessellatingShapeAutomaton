@@ -187,6 +187,73 @@
       #status:empty {
         display: none;
       }
+      aside#prog {
+        width: 330px;
+        flex: 0 0 330px;
+        border-left: 1px solid #1c2530;
+        padding: 12px;
+        overflow-y: auto;
+      }
+      aside#prog[hidden] {
+        display: none;
+      }
+      .prog-level {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin: 10px 0;
+      }
+      .prog-shape {
+        background: #0a0f16;
+        border: 1px solid #223;
+        border-radius: 8px;
+      }
+      .muted {
+        opacity: 0.6;
+        font-size: 12px;
+      }
+      .prog-message {
+        min-height: 18px;
+        color: #7fe0c0;
+        font-size: 12px;
+        margin: 8px 0;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      .prog-message.show {
+        opacity: 1;
+      }
+      .prog-gallery h2 {
+        margin-top: 12px;
+      }
+      .prog-slots {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .prog-slot {
+        width: 54px;
+        height: 54px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px dashed #2e3b4a;
+        border-radius: 8px;
+        background: #0a0f16;
+        color: #556;
+        font-size: 18px;
+      }
+      .prog-slot.found {
+        border-style: solid;
+        border-color: #2b6;
+      }
+      .prog-slot canvas {
+        display: block;
+        width: 52px;
+        height: 52px;
+        image-rendering: pixelated;
+        border-radius: 5px;
+      }
     </style>
   </head>
   <body>
@@ -195,6 +262,7 @@
         <canvas id="app"></canvas>
         <div id="view-hud">
           <button id="mode-lab" class="active">Lab</button>
+          <button id="mode-play">Play</button>
           <button id="mode-battle">Battle</button>
           <button id="mode-view">View</button>
           <button id="view-borders" title="Outline each tile">Borders</button>
@@ -227,6 +295,29 @@
           <button id="lab-export">Export</button>
           <button id="lab-import">Import</button>
         </div>
+      </aside>
+      <aside id="prog" hidden>
+        <h1>Play</h1>
+        <p class="hint">
+          Place copies of the tile anywhere. The board fills in whatever every
+          remaining tiling agrees on. Find them all.
+        </p>
+        <div class="row">
+          <button id="prog-prev">◀ Prev</button>
+          <button id="prog-next">Next ▶</button>
+          <button id="prog-reset">Reset</button>
+        </div>
+        <div id="prog-level" class="prog-level"></div>
+        <div id="prog-progress" class="hint"></div>
+        <div class="row">
+          <button id="prog-rotate">⟳ Rotate</button>
+          <button id="prog-flip">⇄ Flip</button>
+          <button id="prog-undo">Undo</button>
+          <button id="prog-hint">Hint</button>
+        </div>
+        <div id="prog-message" class="prog-message"></div>
+        <h2>Tilings</h2>
+        <div id="prog-gallery" class="prog-gallery"></div>
       </aside>
     </div>
     <div id="status"></div>
